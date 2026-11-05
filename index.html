@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Consulta de Clientes por DNI | Despachos Ripley</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --pink:#FF1A8C; --light-pink:#FFB3D9; --tint:#FFE0EF; --tint2:#FFF5FA;
+  --black:#231F20; --gray:#DCDCDC; --gray-l:#F3F3F5; --text:#231F20; --muted:#6B6670;
+  --font:'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --grad:radial-gradient(circle at 20% 15%, #FF1A8C 0%, #7A0F45 35%, #231F20 75%);
+  --page-bg:var(--grad);
+  --hero-text:#FFFFFF; --hero-sub:rgba(255,255,255,.82); --hero-accent:#FFB3D9;
+  --shadow:0 10px 30px rgba(35,31,32,.14);
+}
+body[data-theme="blanco"] {
+  --grad:linear-gradient(180deg, #FFFFFF 0%, #FFEAF4 100%);
+  --page-bg:linear-gradient(180deg, #FFFFFF 0%, #FFEAF4 100%);
+  --hero-text:#231F20; --hero-sub:#6B6670; --hero-accent:#FF1A8C;
+  --shadow:0 10px 30px rgba(255,26,140,.16);
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;font-family:var(--font);color:var(--text);
+  background:var(--page-bg) fixed;background-color:#231F20;min-height:100vh;
+}
+button, input, select, textarea { font-family:inherit; }
+
+/* ---------- Encabezado ---------- */
+header {
+  position:relative;background:var(--black);color:#fff;padding:14px 3%;display:flex;
+  align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  border-bottom:3px solid var(--pink);
+}
+.brand { display:flex;align-items:center;gap:14px; }
+.logo {
+  width:48px;height:48px;border-radius:14px;background:var(--pink);display:grid;place-items:center;
+  font-size:26px;font-weight:800;color:#fff;flex-shrink:0;box-shadow:0 6px 18px rgba(255,26,140,.45);
+}
+.brand-name { font-size:19px;font-weight:800;letter-spacing:-.01em; }
+.greet { display:flex;align-items:center;gap:10px;margin-top:3px;font-size:13px;color:var(--light-pink);font-weight:600; }
+.wave { display:inline-flex;align-items:flex-end;gap:3px;height:18px; }
+.wave i { width:3px;height:5px;background:var(--pink);border-radius:2px;opacity:.75; }
+.wave.speaking i { animation:eq .9s ease-in-out infinite;opacity:1; }
+.wave i:nth-child(2) { animation-delay:.12s; } .wave i:nth-child(3) { animation-delay:.24s; }
+.wave i:nth-child(4) { animation-delay:.36s; } .wave i:nth-child(5) { animation-delay:.48s; }
+@keyframes eq { 0%,100% { height:5px; } 50% { height:18px; } }
+.top-right { display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end;font-size:13px; }
+.icon-btn {
+  width:38px;height:38px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:transparent;
+  color:#fff;font-size:18px;cursor:pointer;
+}
+.icon-btn:hover { border-color:var(--pink);color:var(--pink); }
+.settings {
+  position:absolute;right:3%;top:calc(100% + 10px);z-index:50;width:280px;background:#fff;color:var(--text);
+  border-radius:16px;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.35);
+}
+.settings .set-title { font-weight:800;font-size:16px;margin-bottom:8px; }
+.settings .set-row { display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0;font-weight:600; }
+.settings .set-label { display:block;font-size:12px;font-weight:700;color:var(--muted);margin:12px 0 4px;text-transform:uppercase;letter-spacing:.04em; }
+.settings select { width:100%; }
+.settings .admin-entry { margin-top:14px;padding-top:12px;border-top:1px solid #EEE; }
+.settings .hint { font-size:12px;color:var(--muted);margin-top:10px;line-height:1.4; }
+
+/* ---------- Estructura ---------- */
+main { padding:22px 3% 40px;max-width:1280px;margin:auto; }
+.card {
+  background:#fff;border-radius:20px;padding:22px;box-shadow:var(--shadow);min-width:0;margin-bottom:22px;
+}
+.sub { color:var(--muted);font-size:14px;line-height:1.5; }
+h3 { margin:0 0 4px;font-size:19px;font-weight:800;letter-spacing:-.01em; }
+
+/* ---------- Portada ---------- */
+.hero { padding:26px 4px 24px; }
+.eyebrow { font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--hero-sub);margin-bottom:12px; }
+h1 {
+  margin:0;font-size:clamp(34px,5.2vw,64px);line-height:1.02;font-weight:800;letter-spacing:-.03em;color:var(--hero-text);
+}
+h1 .accent { color:var(--hero-accent); }
+.lead { margin:16px 0 0;font-size:17px;line-height:1.5;color:var(--hero-sub);max-width:560px;font-weight:500; }
+
+/* ---------- Buscador ---------- */
+.search-card { padding:24px; }
+textarea {
+  width:100%;min-height:96px;padding:16px 18px;border:2px solid var(--light-pink);border-radius:16px;
+  font-size:19px;font-weight:600;font-family:Consolas,'Courier New',monospace;resize:vertical;background:var(--tint2);
+  letter-spacing:.04em;
+}
+textarea:focus { outline:none;border-color:var(--pink);box-shadow:0 0 0 4px rgba(255,26,140,.14); }
+.row { display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px; }
+button { border:0;border-radius:12px;padding:13px 20px;font-weight:700;font-size:14px;cursor:pointer;transition:transform .08s, filter .15s; }
+button:active { transform:translateY(1px); }
+.primary { color:#fff;background:linear-gradient(135deg,#FF1A8C 0%,#E0007A 100%);box-shadow:0 8px 20px rgba(255,26,140,.35); }
+.primary:hover { filter:brightness(.94); }
+.secondary { color:var(--pink);background:#fff;border:1.5px solid var(--light-pink); }
+.secondary:hover { border-color:var(--pink); }
+.dark { color:#fff;background:var(--black); }
+button:disabled { opacity:.45;cursor:not-allowed;box-shadow:none; }
+.mini-btn { padding:7px 11px;font-size:12px;border-radius:9px; }
+select, input[type=text], input[type=email], input[type=password] {
+  padding:10px 12px;border:1.5px solid #E3E3E8;border-radius:10px;font-size:14px;background:#fff;color:var(--text);
+}
+.notice { margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--gray-l);color:#4B4650;font-size:14px;line-height:1.5; }
+input[type=file] { display:none; }
+
+/* ---------- Resultados ---------- */
+.kpis { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-bottom:22px; }
+.kpi { background:#fff;border-radius:20px;padding:20px 22px;box-shadow:var(--shadow); }
+.kpi-num { font-size:clamp(38px,5vw,58px);font-weight:800;line-height:1;letter-spacing:-.03em;color:var(--black); }
+.kpi-label { margin-top:8px;font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em; }
+.kpi-pink { background:var(--pink); } .kpi-pink .kpi-num, .kpi-pink .kpi-label { color:#fff; }
+.kpi-dark { background:var(--black); } .kpi-dark .kpi-num, .kpi-dark .kpi-label { color:#fff; }
+.card-head { display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px; }
+.chips { display:flex;gap:8px;flex-wrap:wrap; }
+.chip { border:1.5px solid var(--light-pink);background:#fff;color:var(--text);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:700; }
+.chip.active { background:var(--pink);color:#fff;border-color:var(--pink); }
+.bars { display:flex;gap:20px;align-items:flex-end;min-height:290px;padding:18px 6px 4px;overflow-x:auto; }
+.bar-col { display:flex;flex-direction:column;align-items:center;gap:10px;min-width:96px;background:none;border:0;padding:0;cursor:pointer; }
+.bar {
+  width:78px;height:0;border-radius:39px 39px 10px 10px;display:flex;align-items:center;justify-content:center;
+  transition:height .9s cubic-bezier(.2,.8,.2,1),transform .15s;
+}
+.bar-col:hover .bar { transform:translateY(-4px); }
+.bar span { writing-mode:vertical-rl;transform:rotate(180deg);font-weight:800;font-size:30px;letter-spacing:-.02em; }
+.bar-name { font-weight:800;font-size:12px;text-align:center;max-width:112px;color:var(--text);line-height:1.25; }
+.bar-name small { display:block;color:var(--muted);font-weight:600;font-size:11px; }
+.bar-col.active .bar-name { color:var(--pink); }
+.table-wrap { overflow:auto;border-radius:14px;border:1px solid #EEE; }
+table { width:100%;border-collapse:collapse;font-size:14px; }
+th { background:var(--black);color:#fff;text-align:left;padding:13px 14px;white-space:nowrap;font-size:12px;letter-spacing:.06em;text-transform:uppercase; }
+td { padding:12px 14px;border-top:1px solid #F0EEF1;overflow-wrap:anywhere; }
+tbody tr:nth-child(even) td { background:var(--tint2); }
+td.dist { font-weight:800;color:var(--pink); }
+.nf { color:#B42318;font-weight:800; }
+.empty { text-align:center;padding:30px;color:var(--muted); }
+.voice-row { display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px; }
+
+footer {
+  background:var(--black);color:#fff;padding:20px 3%;display:flex;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;font-size:13px;
+}
+footer span { color:var(--light-pink); }
+
+/* ---------- Pantalla de inicio de sesión ---------- */
+body.locked > header, body.locked > main, body.locked > footer { display:none !important; }
+#loginScreen {
+  position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;
+  padding:20px;overflow:auto;background:var(--grad);
+}
+.login-card {
+  background:white;border-radius:22px;width:100%;max-width:390px;padding:34px 30px;
+  box-shadow:0 24px 70px rgba(0,0,0,.4);text-align:center;
+}
+.login-card .logo { margin:0 auto 14px;width:58px;height:58px;font-size:31px; }
+.login-card h2 { margin:6px 0 4px;font-size:27px;font-weight:800;color:var(--black);letter-spacing:-.02em; }
+.login-card .tag { margin:0 0 18px;color:var(--pink);font-weight:700;font-size:14px; }
+.login-card label { display:block;text-align:left;font-size:13px;font-weight:700;margin:12px 0 6px; }
+.login-card input { width:100%;font-size:15px; }
+.login-card .primary { width:100%;margin-top:18px; }
+.login-card .secondary { width:100%;margin-top:10px; }
+.login-link { background:none;border:0;color:var(--text);font-weight:700;font-size:13px;margin-top:14px;cursor:pointer;text-decoration:underline;padding:4px;box-shadow:none; }
+.login-msg { min-height:20px;margin-top:12px;font-size:13px;color:var(--muted);line-height:1.4; }
+body[data-theme="blanco"] .login-card, body[data-theme="blanco"] .add-card { box-shadow:0 12px 44px rgba(255,26,140,.28); }
+
+/* ---------- Agregar cliente ---------- */
+#addScreen, #adminScreen {
+  position:fixed;inset:0;z-index:900;display:none;align-items:center;justify-content:center;
+  padding:20px;overflow:auto;background:rgba(15,10,20,.72);
+}
+.add-card { background:white;border-radius:20px;width:100%;max-width:470px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.4); }
+.add-card h3 { margin:0 0 4px;font-size:22px; }
+.add-card label { display:block;font-size:13px;font-weight:700;margin:12px 0 6px; }
+.add-card input { width:100%;font-size:15px; }
+.preview { margin-top:12px;padding:12px;border-radius:12px;background:var(--tint2);border:1.5px dashed var(--light-pink);font-size:14px;line-height:1.5; }
+
+@media(max-width:900px) {
+  .kpis { grid-template-columns:minmax(0,1fr); }
+}
+</style>
+</head>
+<body>
+
+<div id="loginScreen" role="dialog" aria-modal="true" aria-label="Inicio de sesión">
+  <div class="login-card">
+    <div class="logo">✦</div>
+    <h2 id="gateTitle">Bienvenido a</h2>
+    <p class="tag">Consulta de Clientes por DNI</p>
+    <div class="sub" id="gateSub" style="margin-bottom:6px"></div>
+
+    <div id="gateLoginGroup">
+      <label for="gateEmail">Usuario (correo)</label>
+      <input id="gateEmail" type="email" autocomplete="username">
+      <label for="gatePass">Contraseña</label>
+      <input id="gatePass" type="password" autocomplete="current-password">
+      <button class="primary" id="gateLogin">Iniciar sesión</button>
+      <button class="login-link" id="gateForgot">Restablecer contraseña</button>
+    </div>
+
+    <div id="gateNewGroup" style="display:none">
+      <label for="gateNew">Nueva contraseña (mínimo 8 caracteres)</label>
+      <input id="gateNew" type="password" autocomplete="new-password">
+      <label for="gateNew2">Repite la nueva contraseña</label>
+      <input id="gateNew2" type="password" autocomplete="new-password">
+      <button class="primary" id="gateSave">Guardar contraseña</button>
+      <button class="secondary" id="gateCancel" style="display:none">Cancelar</button>
+    </div>
+
+    <div id="gateConfigGroup" style="display:none">
+      <label for="cfgUrl">URL del proyecto de Supabase</label>
+      <input id="cfgUrl" type="text" placeholder="https://xxxx.supabase.co" autocomplete="off">
+      <label for="cfgKey">Clave anon public</label>
+      <input id="cfgKey" type="password" autocomplete="off">
+      <button class="primary" id="cfgSave">Conectar con Supabase</button>
+    </div>
+
+    <div class="login-msg" id="gateMsg" role="status"></div>
+  </div>
+</div>
+
+<div id="adminScreen" role="dialog" aria-modal="true" aria-label="Administrador">
+  <div class="add-card" style="max-width:520px">
+    <h3>🔒 Administrador</h3>
+    <div class="sub">Sube la base de clientes: columnas DNI, NOMBRE, DIRECCION y DISTRITO (opcional: NOMBRE VOZ). No subas teléfonos ni correos.</div>
+    <div class="row">
+      <button class="secondary" id="btnAdminPick">⇧ Elegir Excel</button>
+      <input id="adminFile" type="file" accept=".xlsx,.xls">
+      <button class="secondary" id="btnTemplate">⇩ Plantilla</button>
+    </div>
+    <div class="notice" id="adminMsg" role="status">Elige el Excel para revisarlo antes de subirlo.</div>
+    <div id="adminConfirm" style="display:none">
+      <label for="adminPass">Escribe tu contraseña para subir</label>
+      <input id="adminPass" type="password" autocomplete="current-password" placeholder="Tu contraseña">
+      <div class="row"><button class="primary" id="btnAdminUpload">Subir a la base</button></div>
+    </div>
+    <div class="row" style="margin-top:18px">
+      <button class="secondary mini-btn" id="btnExportLog">⇩ Consultas</button>
+      <button class="secondary mini-btn" id="btnExportAltas">⇩ Altas</button>
+      <button class="secondary" id="btnAdminClose" style="margin-left:auto">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="addScreen" role="dialog" aria-modal="true" aria-label="Agregar cliente nuevo">
+  <div class="add-card">
+    <h3>Agregar cliente nuevo</h3>
+    <div class="sub">La dirección se ordena sola y queda guardada con tu correo en el historial.</div>
+    <label for="addDni">DNI</label>
+    <input id="addDni" type="text" inputmode="numeric" maxlength="8" autocomplete="off">
+    <label for="addName">Nombre completo</label>
+    <input id="addName" type="text" placeholder="NOMBRES APELLIDO-PATERNO APELLIDO-MATERNO" autocomplete="off">
+    <label for="addAddress">Dirección</label>
+    <input id="addAddress" type="text" autocomplete="off">
+    <label for="addDistrict">Distrito correcto</label>
+    <input id="addDistrict" type="text" list="districtOptions" autocomplete="off">
+    <datalist id="districtOptions"></datalist>
+    <div class="preview" id="addPreview">Así se guardará: —</div>
+    <div class="row">
+      <button class="primary" id="addSave">Guardar cliente</button>
+      <button class="secondary" id="addCancel">Cancelar</button>
+    </div>
+    <div class="login-msg" id="addMsg" role="status"></div>
+  </div>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="logo">✦</div>
+    <div>
+      <div class="brand-name">Consulta de Clientes</div>
+      <div class="greet"><span class="wave" id="orb"><i></i><i></i><i></i><i></i><i></i></span><span id="greetText"></span></div>
+    </div>
+  </div>
+  <div class="top-right">
+    <div id="accountBar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+      <span id="accountEmail"></span>
+      <button class="secondary mini-btn" id="accChange">Cambiar contraseña</button>
+      <button class="secondary mini-btn" id="accOut">Salir</button>
+    </div>
+    <button class="icon-btn" id="btnSettings" aria-label="Ajustes" title="Ajustes">⚙</button>
+  </div>
+  <div class="settings" id="settingsPanel" style="display:none">
+    <div class="set-title">Ajustes</div>
+    <label class="set-row"><input type="checkbox" id="assistantOn" checked> Asistente de voz</label>
+    <label class="set-row"><input type="checkbox" id="autoVoice" checked> Hablar al consultar</label>
+    <label class="set-label" for="voiceSelect">Voz</label>
+    <select id="voiceSelect"></select>
+    <label class="set-label" for="voiceRate">Velocidad</label>
+    <select id="voiceRate">
+      <option value="0.9">Lenta</option>
+      <option value="1" selected>Normal</option>
+      <option value="1.15">Rápida</option>
+    </select>
+    <div class="row" style="margin-top:12px"><button class="secondary mini-btn" id="btnVoiceTest">🔊 Probar voz</button></div>
+    <label class="set-label" for="themeSelect">Color</label>
+    <select id="themeSelect" aria-label="Color de la página">
+      <option value="rosa">Rosa</option>
+      <option value="blanco">Blanco</option>
+    </select>
+    <div class="admin-entry" id="adminEntry" style="display:none">
+      <button class="secondary mini-btn" id="btnAdminOpen">🔒 Administrador</button>
+    </div>
+    <div class="hint">Para la voz más natural, abre esta página en Microsoft Edge y elige una voz que diga "Natural".</div>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="eyebrow">Despacho a domicilio · Ripley</div>
+    <h1>Distrito correcto <span class="accent">en segundos</span></h1>
+    <p class="lead">Pega uno o varios DNI y el asistente te dice a qué distrito despachar.</p>
+  </section>
+
+  <section class="card search-card">
+    <textarea id="dniInput" placeholder="Escribe o pega uno o varios DNI (de 5 a 8 dígitos)&#10;44475858&#10;12345678, 87654321" spellcheck="false"></textarea>
+    <div class="row">
+      <button class="primary" id="btnConsult">🔎 Consultar</button>
+      <button class="secondary" id="btnDictate">🎙️ Dictar DNI</button>
+      <button class="secondary" id="btnAddNew">➕ Cliente nuevo</button>
+      <button class="secondary" id="btnClear">Limpiar</button>
+      <button class="secondary" id="btnExportAll" disabled>⇩ Exportar todo lo consultado (0)</button>
+    </div>
+    <div class="notice" id="status" role="status">Escribe uno o varios DNI y pulsa Consultar.</div>
+  </section>
+
+  <section id="resultsCard" style="display:none">
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-num" id="kpiTotal">0</div><div class="kpi-label">DNI consultados</div></div>
+      <div class="kpi kpi-pink"><div class="kpi-num" id="kpiFound">0</div><div class="kpi-label">Encontrados</div></div>
+      <div class="kpi kpi-dark"><div class="kpi-num" id="kpiMissing">0</div><div class="kpi-label">No encontrados</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h3>Clientes por distrito</h3>
+          <div class="sub" id="summaryText"></div>
+        </div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="bars" id="bars"></div>
+    </div>
+
+    <div class="card">
+      <div class="voice-row">
+        <button class="secondary" id="btnSpeakSummary">🔊 Leer resumen</button>
+        <button class="secondary" id="btnReadAll">▶ Leer uno por uno</button>
+        <button class="secondary" id="btnPause">⏸ Pausa</button>
+        <button class="secondary" id="btnSkip">⏭ Siguiente</button>
+        <button class="secondary" id="btnStop">⏹ Detener</button>
+        <span class="sub" id="readerStatus"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>DNI</th><th>Cliente</th><th>Dirección</th><th>Distrito correcto</th><th></th></tr></thead>
+          <tbody id="resultBody"></tbody>
+        </table>
+      </div>
+      <div class="row">
+        <button class="primary" id="btnExport">⇩ Exportar a Excel</button>
+        <select id="exportOrder" aria-label="Orden de la exportación">
+          <option value="input">Orden: como los ingresé</option>
+          <option value="district">Orden: por distrito</option>
+        </select>
+        <button class="secondary" id="btnCopy">📋 Copiar para pegar</button>
+      </div>
+      <div class="sub" style="margin-top:10px">El Excel exportado contiene datos personales de clientes: guárdalo y compártelo con cuidado.</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div><strong>Ripley</strong> &nbsp; <span>|</span> &nbsp; Consulta de clientes · uso interno</div>
+  <div><span>● ● ● ●</span> &nbsp; Herramienta de apoyo operativo</div>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// Para dejar la conexión fija en el archivo, pega aquí los datos de tu proyecto.
+// También se pueden escribir en la pantalla de inicio (se guardan en el navegador).
+const SUPABASE_URL = '';       // ejemplo: https://abcdefgh.supabase.co
+const SUPABASE_ANON_KEY = '';  // clave "anon public" (NUNCA la "service_role")
+const IDLE_MS = 30 * 60 * 1000; // la sesión se cierra tras 30 minutos sin usar
+const MAX_DNI = 500;
+
+// ---------- Utilidades ----------
+function titleCase(text) {
+  const small = ['de', 'del', 'la', 'las', 'los', 'el', 'y', 'e'];
+  return String(text || '').toLowerCase().split(/\s+/).filter(Boolean)
+    .map((w, i) => (i > 0 && small.includes(w)) ? w : w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+// "OSKAR LEON HUISA VILELA" -> "Oskar Huisa" (primer nombre y apellido paterno).
+// Supone que los dos últimos son apellidos y que "de", "del", "la"... van con su apellido.
+const PARTICLES = ['DE', 'DEL', 'LA', 'LAS', 'LOS', 'Y', 'SAN', 'SANTA', 'VAN', 'VON', 'DA', 'DI'];
+function shortName(full) {
+  const w = String(full || '').toUpperCase().split(/\s+/).filter(Boolean);
+  if (w.length === 0) return '';
+  if (w.length === 1) return titleCase(w[0]);
+  if (w.length === 2) return titleCase(w[0] + ' ' + w[1]);
+
+  let i = w.length;
+  const takeWord = () => {
+    i--;
+    while (i > 0 && PARTICLES.includes(w[i - 1])) i--;
+  };
+  takeWord();                      // apellido materno
+  const endPaterno = i;
+  takeWord();                      // apellido paterno
+  const startPaterno = i;
+  const paterno = w.slice(startPaterno, endPaterno).join(' ');
+  const nombres = w.slice(0, startPaterno);
+  if (!nombres.length || !paterno) return titleCase(w[0] + ' ' + w[1]);
+  return titleCase(nombres[0] + ' ' + paterno);
+}
+
+function spellDni(dni) { return String(dni).split('').join(' '); }
+
+function joinNames(list) {
+  if (list.length <= 1) return list[0] || '';
+  return list.slice(0, -1).join(', ') + ' y ' + list[list.length - 1];
+}
+
+function cleanSupabaseUrl(value) {
+  const text = String(value ?? '').trim();
+  try { return new URL(text).origin; } catch (e) { return text.replace(/\/+$/, ''); }
+}
+
+function supabaseConfig() {
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+    return { url: cleanSupabaseUrl(SUPABASE_URL), key: SUPABASE_ANON_KEY.trim() };
+  }
+  let url = '', key = '';
+  try {
+    url = localStorage.getItem('supabaseUrl') || '';
+    key = localStorage.getItem('supabaseKey') || '';
+  } catch (e) {}
+  return url && key ? { url: cleanSupabaseUrl(url), key: key.trim() } : null;
+}
+
+function looksLikeSecret(key) {
+  if (/^sb_secret_/i.test(key)) return true;
+  try {
+    const payload = JSON.parse(atob(key.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.role === 'service_role';
+  } catch (e) { return false; }
+}
+
+function friendlyError(e) {
+  const text = String((e && e.message) || e || '');
+  if (/invalid login credentials/i.test(text)) return 'Correo o contraseña incorrectos. Usa los del usuario que creaste en Supabase.';
+  if (/email not confirmed/i.test(text)) return 'El usuario no está confirmado en Supabase.';
+  if (/not authorized|rate limit|too many/i.test(text)) return 'No se pudo enviar el correo. En Supabase hay que configurar el envío de correos (SMTP), o esperar un rato.';
+  if (/at least|weak|short/i.test(text)) return 'La contraseña es muy corta o muy débil. Usa al menos 8 caracteres.';
+  if (/invalid path/i.test(text)) return 'La URL del proyecto tiene algo de más. Debe ser solo https://xxxx.supabase.co.';
+  if (/api key|apikey|jwt/i.test(text)) return 'La clave del proyecto no es válida. Revisa que copiaste completa la clave "anon public".';
+  if (/could not find the function|does not exist|schema cache/i.test(text)) return 'Falta crear las funciones en Supabase: ejecuta el archivo supabase_clientes.sql.';
+  if (/permission denied/i.test(text)) return 'No tienes permiso para esta acción.';
+  if (/debes iniciar sesi/i.test(text)) return 'Tu sesión terminó. Inicia sesión de nuevo.';
+  if (/fetch|network|failed|load/i.test(text)) return 'No se pudo conectar con Supabase. Revisa tu conexión a internet.';
+  return text;
+}
+
+// ---------- Conexión con Supabase ----------
+const Auth = (function () {
+  const config = supabaseConfig();
+  let client = null;
+  let session = null;
+  let setup = /type=(invite|recovery)/.test(location.hash);
+
+  async function init(onChange) {
+    if (!config) return;
+    if (!window.supabase || !window.supabase.createClient) {
+      throw new Error('No se pudo cargar la librería de Supabase (revisa tu conexión).');
+    }
+    client = window.supabase.createClient(config.url, config.key);
+    const { data } = await client.auth.getSession();
+    session = data ? data.session : null;
+    client.auth.onAuthStateChange((event, newSession) => {
+      session = newSession;
+      if (event === 'PASSWORD_RECOVERY') setup = true;
+      if (onChange) onChange();
+    });
+  }
+
+  const configured = () => !!config;
+  const email = () => (session && session.user ? session.user.email : '');
+  const ready = () => !!session;
+  const setupMode = () => setup;
+  const endSetup = () => { setup = false; };
+
+  async function signIn(mail, pass) {
+    if (!client) throw new Error('No se pudo iniciar la conexión con Supabase (revisa la URL y la clave).');
+    const { error } = await client.auth.signInWithPassword({ email: mail, password: pass });
+    if (error) throw error;
+    const current = await client.auth.getSession();
+    session = current && current.data ? current.data.session : session;
+  }
+  async function signOut() { if (client) await client.auth.signOut(); session = null; }
+
+  // Vuelve a pedir la contraseña antes de una acción delicada.
+  async function verifyPassword(pass) {
+    if (!client || !session) throw new Error('Debes iniciar sesión');
+    const { error } = await client.auth.signInWithPassword({ email: session.user.email, password: pass });
+    if (error) throw error;
+  }
+
+  async function updatePassword(newPassword) {
+    if (!client || !session) throw new Error('Inicia sesión primero.');
+    const { error } = await client.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  }
+  async function sendReset(mail) {
+    if (!client) throw new Error('No se pudo iniciar la conexión con Supabase.');
+    const { error } = await client.auth.resetPasswordForEmail(mail, { redirectTo: location.origin + location.pathname });
+    if (error) throw error;
+  }
+
+  async function rpc(name, args) {
+    if (!client || !session) throw new Error('Debes iniciar sesión');
+    const { data, error } = await client.rpc(name, args);
+    if (error) throw error;
+    return data;
+  }
+  async function fetchRows(table, orderCol, limit) {
+    const { data, error } = await client.from(table).select('*').order(orderCol, { ascending: false }).limit(limit);
+    if (error) throw error;
+    return data || [];
+  }
+  async function upsertClientes(rows) {
+    const { error } = await client.from('clientes').upsert(rows, { onConflict: 'dni_clave' });
+    if (error) throw error;
+  }
+
+  return { init, configured, email, ready, setupMode, endSetup, signIn, signOut, updatePassword, sendReset, rpc, fetchRows, upsertClientes, verifyPassword };
+})();
+
+// ---------- Ordenar direcciones (igual que en el Asistente de despacho) ----------
+const guessList = [];   // en esta página no se adivina el distrito desde el texto
+
+function norm(value) {
+  return String(value ?? '').trim().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+}
+
+function normTxt(value) {
+  return norm(value).replace(/[^A-Z0-9]+/g, ' ').trim();
+}
+
+const STREET_TYPES = [
+  [/(^|\s)(AVENIDA|AVDA|AVE|AV)(?=\s|$)/g, '$1AV'],
+  [/(^|\s)(JIRON|JIRÓN|JR)(?=\s|$)/g, '$1JR'],
+  [/(^|\s)(CALLE|CAL|CLL)(?=\s|$)/g, '$1CALLE'],
+  [/(^|\s)(PASAJE|PSJE|PSJ|PJE)(?=\s|$)/g, '$1PSJ'],
+  [/(^|\s)(URBANIZACION|URBANIZACIÓN|URBAN|URB)(?=\s|$)/g, '$1URB'],
+  [/(^|\s)(MANZANA|MZNA|MZA|MZ)(?=\s|$)/g, '$1MZ'],
+  [/(^|\s)(LOTE|LTE|LT)(?=\s|$)/g, '$1LT'],
+  [/(^|\s)(PROLONGACION|PROLONGACIÓN|PROLONG|PROL)(?=\s|$)/g, '$1PROL'],
+  [/(^|\s)(CARRETERA|CARR)(?=\s|$)/g, '$1CARR'],
+  [/(^|\s)(CUADRA|CDRA)(?=\s|$)/g, '$1CDRA'],
+  [/(^|\s)STA(?=\s|$)/g, '$1SANTA'],
+  [/(^|\s)STO(?=\s|$)/g, '$1SANTO']
+];
+
+const VIA_TYPES = ['AV', 'JR', 'CALLE', 'PSJ', 'URB', 'AAHH', 'CARR', 'PROL'];
+
+function cleanAddress(raw, district = '') {
+  let s = ' ' + String(raw ?? '').toUpperCase().replace(/\s+/g, ' ').trim() + ' ';
+  const references = [];
+  const interiors = [];
+
+  // 1. Separar las referencias (no sirven para ubicar el punto).
+  const refRegex = /\s(REF[:.\s]|REFERENCIA|CERCA\s+(DE|AL)|FRENTE\s+(A|AL)|AL\s+COSTADO|AL\s+FRENTE|ESPALDAS?\s+DE|A\s+(UNA|\d+)\s+CUADRAS?)/;
+  const refMatch = refRegex.exec(s);
+  if (refMatch && refMatch.index > 5) {
+    references.push(s.slice(refMatch.index).trim());
+    s = s.slice(0, refMatch.index) + ' ';
+  }
+
+  // 2. Separar departamento, interior, piso, oficina, etc.
+  const interiorRegex = /(^|\s)(DPTO|DEPTO|DEPARTAMENTO|INTERIOR|INT|OFICINA|OFIC|OF|PISO|TORRE|BLOCK|BLQ|TIENDA|TDA|STAND)\.?\s*[:#-]?\s*[A-Z]?\d+[A-Z]?(?=\s|$|,)/g;
+  s = s.replace(interiorRegex, (m) => {
+    interiors.push(m.replace(/[.:#-]/g, ' ').replace(/\s+/g, ' ').trim());
+    return ' ';
+  });
+
+  // 3. Limpiar símbolos y abreviaturas de número.
+  s = s.replace(/A\.?\s?A\.?\s?H\.?\s?H\.?/g, ' AAHH ')
+       .replace(/\bN\s*[°º]\s*/g, ' ')
+       .replace(/\b(NRO|NUM|NUMERO|NÚMERO)\.?\s*/g, ' ')
+       .replace(/S\/N/g, ' ')
+       .replace(/(^|\s)(SN|SIN NUMERO|SIN NÚMERO)(?=\s|$)/g, ' ')
+       .replace(/[#.,;:()]+/g, ' ')
+       .replace(/\s[-–]\s/g, ' ')
+       .replace(/\s+/g, ' ');
+
+  // 4. Estandarizar tipos de vía.
+  s = ' ' + s.trim() + ' ';
+  STREET_TYPES.forEach(([regex, replacement]) => { s = s.replace(regex, replacement); });
+  s = s.trim();
+
+  // 5. Quitar al final el distrito escrito, Lima, Callao o Perú.
+  //    Solo se quita Lima/Callao/Perú si antes ya hay un número o MZ,
+  //    para no borrar "Callao" cuando es parte del nombre de la calle.
+  const districtUpper = String(district ?? '').toUpperCase().trim();
+  const endings = ['LIMA METROPOLITANA', 'LIMA', 'CALLAO', 'PERU', 'PERÚ'];
+  let tailDistrict = '';
+  for (let n = 0; n < 3; n++) {
+    let changed = false;
+    const candidates = districtUpper ? [districtUpper, ...endings] : endings;
+    for (const ending of candidates) {
+      const escaped = ending.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp('\\s' + escaped + '$');
+      if (!regex.test(s)) continue;
+      const rest = s.replace(regex, '').trim();
+      const isDistrict = ending === districtUpper;
+      const hasNumber = /\d|(^|\s)MZ(\s|$)/.test(rest);
+      if (rest.split(' ').length >= 2 && (isDistrict || hasNumber)) {
+        s = rest;
+        changed = true;
+        if (ending === 'CALLAO' && !isDistrict) tailDistrict = 'CALLAO';
+      }
+    }
+    if (!changed) break;
+  }
+
+  // Si el Excel no trae distrito, solo se reconoce uno escrito AL FINAL de la
+  // dirección, después del número. Nunca dentro del nombre de la calle
+  // ("JR BATALLON CALLAO SUR 481" no está en el Callao).
+  if (!districtUpper && !tailDistrict && typeof guessList !== 'undefined' && guessList.length) {
+    const ns = ' ' + normTxt(s);
+    for (const d of guessList) {
+      if (!ns.endsWith(' ' + d.key)) continue;
+      const toks = s.split(' ');
+      const rest = toks.slice(0, toks.length - d.key.split(' ').length).join(' ');
+      if (/\d/.test(rest) && rest.split(' ').length >= 2) {
+        tailDistrict = d.name;
+        s = rest;
+      }
+      break;
+    }
+  }
+
+  // 6. Separar vía, nombre, número e interior.
+  const tokens = s.split(' ').filter(Boolean);
+  const via = VIA_TYPES.includes(tokens[0]) ? tokens[0] : '';
+  const isNum = t => /^\d+[A-Z]?$/.test(t);
+  const notHouseNumber = ['LT', 'MZ', 'CDRA', 'KM'];
+
+  let k = tokens.length;
+  while (k > 0 && isNum(tokens[k - 1]) && !notHouseNumber.includes(tokens[k - 2])) k--;
+  const nums = tokens.slice(k);
+
+  let number = '';
+  let extraNums = [];
+  let bodyEnd = k;
+
+  if (nums.length) {
+    // "CALLE 7 123": el primer número es parte del nombre de la calle.
+    const first = (via && k === 1) ? 1 : 0;
+    bodyEnd = k + first;
+    number = nums[first] || '';
+    extraNums = nums.slice(first + 1);
+  }
+
+  const bodyTokens = tokens.slice(0, bodyEnd);
+  const name = bodyTokens.slice(via ? 1 : 0).join(' ');
+  const clean = bodyTokens.concat(number ? [number] : []).join(' ');
+
+  const interiorList = [...interiors];
+  if (extraNums.length) interiorList.push('INT ' + extraNums.join(' '));
+
+  return {
+    clean,
+    via,
+    name,
+    number,
+    interior: interiorList.join(' '),
+    reference: references.join(' | '),
+    tailDistrict
+  };
+}
+
+
+const LIMA_DISTRICTS = [
+  'ANCON', 'ATE', 'BARRANCO', 'BELLAVISTA', 'BREÑA', 'CALLAO', 'CARABAYLLO',
+  'CARMEN DE LA LEGUA REYNOSO', 'CHACLACAYO', 'CHORRILLOS', 'CIENEGUILLA', 'COMAS',
+  'EL AGUSTINO', 'INDEPENDENCIA', 'JESUS MARIA', 'LA MOLINA', 'LA PERLA', 'LA PUNTA',
+  'LA VICTORIA', 'LIMA', 'LINCE', 'LOS OLIVOS', 'LURIGANCHO', 'LURIN', 'MAGDALENA DEL MAR',
+  'MI PERU', 'MIRAFLORES', 'PACHACAMAC', 'PUCUSANA', 'PUEBLO LIBRE', 'PUENTE PIEDRA',
+  'PUNTA HERMOSA', 'PUNTA NEGRA', 'RIMAC', 'SAN BARTOLO', 'SAN BORJA', 'SAN ISIDRO',
+  'SAN JUAN DE LURIGANCHO', 'SAN JUAN DE MIRAFLORES', 'SAN LUIS', 'SAN MARTIN DE PORRES',
+  'SAN MIGUEL', 'SANTA ANITA', 'SANTA MARIA DEL MAR', 'SANTA ROSA', 'SANTIAGO DE SURCO',
+  'SURQUILLO', 'VENTANILLA', 'VILLA EL SALVADOR', 'VILLA MARIA DEL TRIUNFO'
+];
+
+// ---------- Estado de la consulta ----------
+let results = [];      // [{ dni, found, nombre, direccion, distrito, voz }]
+let meta = { invalid: [], duplicates: 0 };
+let activeFilter = 'ALL';
+
+let sessionLog = [];   // todo lo consultado desde que se inició sesión
+
+function setStatus(text) { $('status').textContent = text; }
+
+function updateExportAll() {
+  const button = $('btnExportAll');
+  button.textContent = '⇩ Exportar todo lo consultado (' + sessionLog.length + ')';
+  button.disabled = sessionLog.length === 0;
+}
+
+function logRows(list, status) {
+  const when = new Date();
+  list.forEach(r => sessionLog.push({
+    fecha: when.toLocaleString('es-PE'),
+    usuario: Auth.email(),
+    dni: r.dni,
+    cliente: r.found ? r.nombre : '',
+    direccion: r.found ? r.direccion : '',
+    distrito: r.found ? r.distrito : '',
+    estado: status || (r.found ? 'ENCONTRADO' : 'NO ENCONTRADO')
+  }));
+  updateExportAll();
+}
+
+// 01234567 y 1234567 son el mismo DNI (Excel suele quitar el cero inicial).
+const dniKey = digits => String(digits).replace(/^0+/, '');
+
+function parseDnis(text) {
+  const valid = [];
+  const invalid = [];
+  const seen = new Set();
+  let duplicates = 0;
+  String(text).split(/[\s,;]+/).filter(Boolean).forEach(token => {
+    const digits = token.replace(/\D/g, '');
+    if (digits.length === 0) return;                         // palabras sueltas como "DNI"
+    if (digits.length < 5 || digits.length > 8 || !dniKey(digits)) { invalid.push(token); return; }
+    const key = dniKey(digits);
+    if (seen.has(key)) { duplicates++; return; }
+    seen.add(key);
+    valid.push(digits);
+  });
+  return { valid, invalid, duplicates };
+}
+
+async function consult() {
+  if (!Auth.ready()) return;
+  const parsed = parseDnis($('dniInput').value);
+  if (!parsed.valid.length) {
+    setStatus(parsed.invalid.length
+      ? 'Ningún DNI es válido: deben tener entre 5 y 8 dígitos. Revisa: ' + parsed.invalid.slice(0, 5).join(', ')
+      : 'Escribe al menos un DNI (de 5 a 8 dígitos).');
+    return;
+  }
+  if (parsed.valid.length > MAX_DNI) {
+    setStatus('Máximo ' + MAX_DNI + ' DNI por consulta. Dividamos la lista en partes.');
+    return;
+  }
+
+  const button = $('btnConsult');
+  button.disabled = true;
+  setStatus('Consultando ' + parsed.valid.length + ' DNI...');
+  try {
+    const rows = new Map();
+    for (let i = 0; i < parsed.valid.length; i += 200) {
+      const data = await Auth.rpc('consultar_dni', { dnis: parsed.valid.slice(i, i + 200) });
+      (data || []).forEach(r => rows.set(r.dni_clave || dniKey(r.dni), r));
+    }
+    results = parsed.valid.map(dni => {
+      const r = rows.get(dniKey(dni));
+      return r
+        ? { dni: r.dni, found: true, nombre: r.nombre, direccion: r.direccion || '', distrito: r.distrito, voz: r.nombre_voz || shortName(r.nombre) }
+        : { dni, found: false };
+    });
+    meta = { invalid: parsed.invalid, duplicates: parsed.duplicates };
+    logRows(results);
+    activeFilter = 'ALL';
+    renderResults();
+    setStatus('Consulta lista.');
+    if ($('autoVoice').checked) speakSummary();
+  } catch (e) {
+    setStatus('No se pudo consultar: ' + friendlyError(e));
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function groupByDistrict() {
+  const map = new Map();
+  results.filter(r => r.found).forEach(r => {
+    if (!map.has(r.distrito)) map.set(r.distrito, []);
+    map.get(r.distrito).push(r);
+  });
+  return [...map.entries()]
+    .map(([distrito, items]) => ({ distrito, items }))
+    .sort((a, b) => b.items.length - a.items.length || a.distrito.localeCompare(b.distrito, 'es'));
+}
+
+const BAR_COLORS = [
+  { bg: '#FF1A8C', fg: '#FFFFFF' },
+  { bg: '#FFB3D9', fg: '#7A0F45' },
+  { bg: '#231F20', fg: '#FFFFFF' },
+  { bg: '#DCDCDC', fg: '#231F20' }
+];
+
+const fmtNumber = n => Number(n).toLocaleString('es-PE');
+
+function countUp(el, target) {
+  clearInterval(el._timer);
+  target = Number(target) || 0;
+  if (target <= 1) { el.textContent = fmtNumber(target); return; }
+  const steps = 18;
+  let i = 0;
+  el._timer = setInterval(() => {
+    i++;
+    el.textContent = fmtNumber(Math.round(target * i / steps));
+    if (i >= steps) clearInterval(el._timer);
+  }, 28);
+}
+
+function renderResults(animate = true) {
+  const found = results.filter(r => r.found).length;
+  const missing = results.length - found;
+  const parts = [results.length + (results.length === 1 ? ' DNI consultado' : ' DNI consultados'), 'Encontrados: ' + found];
+  if (missing) parts.push('No encontrados: ' + missing);
+  if (meta.invalid.length) parts.push('No válidos: ' + meta.invalid.length + ' (' + meta.invalid.slice(0, 3).join(', ') + ')');
+  if (meta.duplicates) parts.push('Repetidos: ' + meta.duplicates + ' (se consultaron una sola vez)');
+  $('summaryText').textContent = parts.join(' · ') + '.';
+
+  if (animate) {
+    countUp($('kpiTotal'), results.length);
+    countUp($('kpiFound'), found);
+    countUp($('kpiMissing'), missing);
+  }
+
+  const groups = groupByDistrict();
+
+  // Filtros
+  const chips = $('chips');
+  chips.innerHTML = '';
+  const addChip = (key, label, goTo) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (activeFilter === key ? ' active' : '');
+    b.textContent = label;
+    b.addEventListener('click', () => { activeFilter = goTo === undefined ? key : goTo; renderResults(false); });
+    chips.appendChild(b);
+  };
+  addChip('ALL', 'Todos (' + results.length + ')');
+  if (missing) addChip('NOFOUND', 'No encontrados (' + missing + ')');
+  if (activeFilter.startsWith('D:')) addChip(activeFilter, activeFilter.slice(2) + ' ✕', 'ALL');
+
+  // Barras por distrito (con la paleta de la marca)
+  const bars = $('bars');
+  bars.innerHTML = '';
+  if (!groups.length) {
+    bars.innerHTML = '<div class="empty" style="width:100%">Ningún DNI fue encontrado en la base.</div>';
+  }
+  const max = Math.max(1, ...groups.map(g => g.items.length));
+  groups.forEach((g, i) => {
+    const color = BAR_COLORS[i % BAR_COLORS.length];
+    const key = 'D:' + g.distrito;
+    const col = document.createElement('button');
+    col.type = 'button';
+    col.className = 'bar-col' + (activeFilter === key ? ' active' : '');
+    col.title = 'Ver solo ' + g.distrito;
+
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.background = color.bg;
+    const label = document.createElement('span');
+    label.textContent = g.items.length;
+    label.style.color = color.fg;
+    bar.appendChild(label);
+
+    const name = document.createElement('div');
+    name.className = 'bar-name';
+    name.textContent = g.distrito;
+    const pct = document.createElement('small');
+    pct.textContent = Math.round(100 * g.items.length / found) + '% de los encontrados';
+    name.appendChild(pct);
+
+    col.appendChild(bar);
+    col.appendChild(name);
+    col.addEventListener('click', () => { activeFilter = activeFilter === key ? 'ALL' : key; renderResults(false); });
+    bars.appendChild(col);
+
+    const height = 70 + Math.round((g.items.length / max) * 170);
+    if (animate) setTimeout(() => { bar.style.height = height + 'px'; }, 40);
+    else { bar.style.transition = 'none'; bar.style.height = height + 'px'; }
+  });
+
+  // Tabla
+  const body = $('resultBody');
+  body.innerHTML = '';
+  const visible = results.filter(r => {
+    if (activeFilter === 'ALL') return true;
+    if (activeFilter === 'NOFOUND') return !r.found;
+    return r.found && ('D:' + r.distrito) === activeFilter;
+  });
+
+  if (!visible.length) {
+    body.innerHTML = '<tr><td colspan="5" class="empty">No hay registros en esta categoría.</td></tr>';
+  }
+  visible.forEach(r => {
+    const tr = document.createElement('tr');
+    const cells = r.found
+      ? [r.dni, r.nombre, r.direccion, r.distrito]
+      : [r.dni, 'No encontrado', '', ''];
+    cells.forEach((text, i) => {
+      const td = document.createElement('td');
+      td.textContent = text;
+      if (!r.found && i === 1) td.className = 'nf';
+      if (r.found && i === 3) td.className = 'dist';
+      tr.appendChild(td);
+    });
+    const tdVoice = document.createElement('td');
+    if (r.found) {
+      const b = document.createElement('button');
+      b.className = 'secondary mini-btn';
+      b.textContent = '🔊';
+      b.title = 'Leer este cliente';
+      b.addEventListener('click', () => {
+        stopVoice();
+        say(r.voz + '. Su distrito correcto es ' + titleCase(r.distrito) + '.');
+      });
+      tdVoice.appendChild(b);
+    } else {
+      const add = document.createElement('button');
+      add.className = 'secondary mini-btn';
+      add.textContent = '➕ Agregar';
+      add.title = 'Agregar este cliente nuevo';
+      add.addEventListener('click', () => openAdd(r.dni));
+      tdVoice.appendChild(add);
+    }
+    tr.appendChild(tdVoice);
+    body.appendChild(tr);
+  });
+
+  $('resultsCard').style.display = 'block';
+}
+
+// ---------- Voz ----------
+let readerItems = [];
+let readerIndex = 0;
+let readerToken = 0;
+let readerPaused = false;
+
+const TEAM_NAME = 'MAT';
+let assistantOn = true;
+let preferredVoice = '';
+try {
+  assistantOn = localStorage.getItem('asistenteVoz') !== 'off';
+  preferredVoice = localStorage.getItem('consultaVoz') || '';
+} catch (e) {}
+
+function setSpeaking(on) { $('orb').classList.toggle('speaking', !!on); }
+
+// Las voces "Natural" de Edge y las de Google suenan mucho mejor que las del sistema.
+function scoreVoice(v) {
+  const n = v.name.toLowerCase();
+  let score = 0;
+  if (/natural|neural/.test(n)) score += 100;
+  if (/online/.test(n)) score += 20;
+  if (/google/.test(n)) score += 40;
+  if (/^es-pe/i.test(v.lang)) score += 30;
+  else if (/^es-(mx|us|419)/i.test(v.lang)) score += 20;
+  else if (/^es-es/i.test(v.lang)) score += 10;
+  return score;
+}
+
+function spanishVoices() {
+  if (!('speechSynthesis' in window)) return [];
+  return window.speechSynthesis.getVoices()
+    .filter(v => /^es/i.test(v.lang))
+    .sort((a, b) => scoreVoice(b) - scoreVoice(a));
+}
+
+function pickVoice() {
+  const list = spanishVoices();
+  return list.find(v => v.name === preferredVoice) || list[0];
+}
+
+function fillVoiceSelect() {
+  const select = $('voiceSelect');
+  const list = spanishVoices();
+  select.innerHTML = '';
+  const auto = document.createElement('option');
+  auto.value = '';
+  auto.textContent = list.length ? 'Automática (la más natural)' : 'Voz del navegador';
+  select.appendChild(auto);
+  list.forEach(v => {
+    const option = document.createElement('option');
+    option.value = v.name;
+    option.textContent = (/natural|neural/i.test(v.name) ? '★ ' : '') + v.name.replace(/^Microsoft /, '') + ' (' + v.lang + ')';
+    select.appendChild(option);
+  });
+  select.value = list.some(v => v.name === preferredVoice) ? preferredVoice : '';
+}
+
+const VOICE_ACCENTS = {
+  maria: 'María', jesus: 'Jesús', jose: 'José', perez: 'Pérez', gomez: 'Gómez', gonzalez: 'González',
+  rodriguez: 'Rodríguez', lopez: 'López', martinez: 'Martínez', martin: 'Martín', fernandez: 'Fernández',
+  sanchez: 'Sánchez', ramirez: 'Ramírez', diaz: 'Díaz', garcia: 'García', andres: 'Andrés',
+  hernandez: 'Hernández', jimenez: 'Jiménez', alvarez: 'Álvarez', suarez: 'Suárez', peru: 'Perú',
+  rimac: 'Rímac', ancon: 'Ancón', lurin: 'Lurín', sebastian: 'Sebastián', adrian: 'Adrián',
+  ivan: 'Iván', ruben: 'Rubén', angel: 'Ángel', cesar: 'César', victor: 'Víctor', hector: 'Héctor',
+  oscar: 'Óscar', ines: 'Inés', rocio: 'Rocío', lucia: 'Lucía', sofia: 'Sofía', veronica: 'Verónica',
+  monica: 'Mónica', nicolas: 'Nicolás', tomas: 'Tomás', julian: 'Julián', ramon: 'Ramón'
+};
+function forVoice(text) {
+  return String(text).replace(/[A-Za-zÁÉÍÓÚáéíóúÑñ]+/g, w => VOICE_ACCENTS[w.toLowerCase()] || w);
+}
+
+function newUtterance(text) {
+  const u = new SpeechSynthesisUtterance(forVoice(text));
+  const voice = pickVoice();
+  u.lang = voice ? voice.lang : 'es-PE';
+  u.rate = Number($('voiceRate').value) || 1;
+  u.pitch = 1;
+  if (voice) u.voice = voice;
+  return u;
+}
+
+// Cada frase se dice por separado: así la voz respira entre frases y suena menos robótica.
+function sentencesOf(text) {
+  return (String(text).match(/[^.!?]+[.!?]*/g) || [String(text)]).map(t => t.trim()).filter(Boolean);
+}
+
+function say(text, onend) {
+  if (!assistantOn) {
+    setStatus('La voz del asistente está silenciada (en Ajustes ⚙).');
+    return;
+  }
+  if (!('speechSynthesis' in window)) {
+    setStatus('Tu navegador no tiene voz. Usa Google Chrome o Microsoft Edge.');
+    if (onend) onend();
+    return;
+  }
+  const parts = sentencesOf(text);
+  parts.forEach((part, i) => {
+    const u = newUtterance(part);
+    if (i === 0) u.onstart = () => setSpeaking(true);
+    if (i === parts.length - 1) u.onend = () => { setSpeaking(false); if (onend) onend(); };
+    u.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(u);
+  });
+}
+
+function greetingWord() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return 'Buen día';
+  if (hour >= 12 && hour < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+let greeted = false;
+let greetPending = false;
+let greetTries = 0;
+
+function speakGreeting() {
+  if (!assistantOn || !('speechSynthesis' in window) || greetTries >= 3) { greetPending = false; return; }
+  greetTries++;
+  const u = newUtterance(greetingWord() + ', equipo ' + TEAM_NAME + '. Bienvenidos al sistema de consulta de clientes.');
+  u.onstart = () => { greetPending = false; greeted = true; setSpeaking(true); };
+  u.onend = () => { greetPending = false; greeted = true; setSpeaking(false); };
+  u.onerror = e => {
+    setSpeaking(false);
+    // Si el navegador solo exigía un clic, se vuelve a intentar; cualquier otro error no se repite.
+    if (e && e.error && e.error !== 'not-allowed') { greetPending = false; greeted = true; }
+  };
+  window.speechSynthesis.speak(u);
+}
+
+// El navegador solo deja hablar después de un clic o una tecla; si hacía falta, se saluda en el primero.
+function greet() {
+  if (greeted) return;
+  $('greetText').textContent = greetingWord() + ', equipo ' + TEAM_NAME;
+  greetTries = 0;
+  greetPending = true;
+  speakGreeting();
+}
+['click', 'keydown', 'touchstart'].forEach(ev =>
+  document.addEventListener(ev, () => { if (greetPending && !greeted) speakGreeting(); }, { passive: true }));
+
+function stopVoice() {
+  readerToken++;
+  readerPaused = false;
+  $('btnPause').textContent = '⏸ Pausa';
+  setSpeaking(false);
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+function summarySpeech() {
+  if (!results.length) return '';
+  if (results.length === 1) {
+    const r = results[0];
+    return r.found
+      ? 'Listo. ' + r.voz + ', su distrito correcto es ' + titleCase(r.distrito) + '.'
+      : 'No encontré ese DNI en la base. Puedes agregarlo como cliente nuevo.';
+  }
+  const found = results.filter(r => r.found).length;
+  const parts = ['Listo. Consulté ' + results.length + ' DNI y encontré ' + found + '.'];
+  groupByDistrict().forEach(g => {
+    const names = g.items.map(i => i.voz);
+    const shown = names.slice(0, 3);
+    const rest = names.length - shown.length;
+    const list = rest > 0
+      ? shown.join(', ') + ' y ' + rest + (rest === 1 ? ' cliente más' : ' clientes más')
+      : joinNames(shown);
+    parts.push('En ' + titleCase(g.distrito) + ': ' + list + '.');
+  });
+  const missing = results.length - found;
+  if (missing) parts.push('No encontré ' + missing + ' DNI.');
+  if (meta.invalid.length) parts.push('Ojo: ' + meta.invalid.length + (meta.invalid.length === 1 ? ' número no tiene' : ' números no tienen') + ' entre 5 y 8 dígitos.');
+  return parts.join(' ');
+}
+
+function speakSummary() {
+  stopVoice();
+  const text = summarySpeech();
+  if (text) say(text);
+}
+
+function readerStart() {
+  stopVoice();
+  const total = results.filter(r => r.found).length;
+  let n = 0;
+  readerItems = results.map(r => {
+    if (!r.found) return 'El DNI terminado en ' + spellDni(r.dni.slice(-3)) + ' no está en la base.';
+    n++;
+    return 'Cliente ' + n + ' de ' + total + '. ' + r.voz + ', distrito ' + titleCase(r.distrito) + '.';
+  });
+  if (!readerItems.length) return;
+  readerIndex = 0;
+  const token = ++readerToken;
+  readerNext(token);
+}
+
+function readerNext(token) {
+  if (token !== readerToken) return;
+  if (readerIndex >= readerItems.length) {
+    $('readerStatus').textContent = 'Lectura terminada.';
+    return;
+  }
+  $('readerStatus').textContent = 'Leyendo ' + (readerIndex + 1) + ' de ' + readerItems.length + '...';
+  say(readerItems[readerIndex], () => {
+    if (token !== readerToken) return;
+    readerIndex++;
+    readerNext(token);
+  });
+}
+
+function readerSkip() {
+  if (!readerItems.length) return;
+  const token = ++readerToken;
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  readerPaused = false;
+  $('btnPause').textContent = '⏸ Pausa';
+  readerIndex++;
+  readerNext(token);
+}
+
+function togglePause() {
+  if (!('speechSynthesis' in window)) return;
+  if (!readerPaused) {
+    window.speechSynthesis.pause();
+    readerPaused = true;
+    $('btnPause').textContent = '▶ Continuar';
+  } else {
+    window.speechSynthesis.resume();
+    readerPaused = false;
+    $('btnPause').textContent = '⏸ Pausa';
+  }
+}
+
+// Dictado: "cuatro cuatro cuatro siete cinco ocho cinco ocho" -> 44475858
+function digitsFromSpeech(text) {
+  const words = { cero: 0, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9 };
+  return String(text).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .split(/\s+/)
+    .map(t => (t in words) ? String(words[t]) : t.replace(/\D/g, ''))
+    .join('');
+}
+
+function startDictation() {
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Recognition) {
+    setStatus('Tu navegador no permite dictado. Usa Google Chrome.');
+    return;
+  }
+  const rec = new Recognition();
+  rec.lang = 'es-PE';
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  setStatus('🎙️ Escuchando... di el DNI dígito por dígito.');
+  rec.onresult = event => {
+    const digits = digitsFromSpeech(event.results[0][0].transcript);
+    const input = $('dniInput');
+    const add = text => { input.value = (input.value.trim() ? input.value.trim() + '\n' : '') + text; };
+    if (digits.length >= 5 && digits.length <= 8) {
+      add(digits);
+      setStatus('Dicté el DNI ' + digits + '. Revisa y pulsa Consultar.');
+    } else if (digits.length > 8 && digits.length % 8 === 0) {
+      const chunks = digits.match(/.{8}/g);
+      add(chunks.join('\n'));
+      setStatus('Dicté ' + chunks.length + ' DNI. Revisa y pulsa Consultar.');
+    } else if (digits) {
+      add(digits);
+      setStatus('Escuché ' + digits.length + ' dígitos (un DNI tiene de 5 a 8). Revísalos antes de consultar.');
+    } else {
+      setStatus('No entendí ningún número. Intenta de nuevo.');
+    }
+  };
+  rec.onerror = () => setStatus('No se pudo usar el micrófono. Revisa el permiso del navegador.');
+  rec.start();
+}
+
+// ---------- Exportar ----------
+function exportRows() {
+  const list = results.slice();
+  if ($('exportOrder').value === 'district') {
+    list.sort((a, b) => {
+      if (a.found !== b.found) return a.found ? -1 : 1;
+      return String(a.distrito || '').localeCompare(String(b.distrito || ''), 'es') ||
+        String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es');
+    });
+  }
+  return list;
+}
+
+function exportExcel() {
+  if (!results.length || !window.XLSX) return;
+  const workbook = XLSX.utils.book_new();
+
+  const clientes = [['DNI', 'CLIENTE', 'DIRECCION', 'DISTRITO CORRECTO', 'ESTADO']];
+  exportRows().forEach(r => clientes.push([
+    r.dni, r.found ? r.nombre : '', r.found ? r.direccion : '', r.found ? r.distrito : '',
+    r.found ? 'ENCONTRADO' : 'NO ENCONTRADO'
+  ]));
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(clientes), 'Clientes');
+
+  const resumen = [['DISTRITO', 'CANTIDAD DE CLIENTES']];
+  groupByDistrict().forEach(g => resumen.push([g.distrito, g.items.length]));
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(resumen), 'Resumen por distrito');
+
+  const sinDatos = [['DNI', 'MOTIVO']];
+  results.filter(r => !r.found).forEach(r => sinDatos.push([r.dni, 'No está en la base de clientes']));
+  meta.invalid.forEach(t => sinDatos.push([t, 'DNI no válido (debe tener 8 dígitos)']));
+  if (sinDatos.length > 1) {
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(sinDatos), 'No encontrados');
+  }
+
+  XLSX.writeFile(workbook, 'Consulta_clientes_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+}
+
+function exportAll() {
+  if (!sessionLog.length || !window.XLSX) return;
+  const workbook = XLSX.utils.book_new();
+  const rows = [['FECHA Y HORA', 'CONSULTADO POR', 'DNI', 'CLIENTE', 'DIRECCION', 'DISTRITO CORRECTO', 'ESTADO']];
+  sessionLog.forEach(r => rows.push([r.fecha, r.usuario, r.dni, r.cliente, r.direccion, r.distrito, r.estado]));
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'Consultas');
+  XLSX.writeFile(workbook, 'Todo_lo_consultado_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+}
+
+async function copyResults() {
+  if (!results.length) return;
+  const text = exportRows()
+    .map(r => r.found ? [r.dni, r.nombre, r.distrito].join('\t') : [r.dni, 'NO ENCONTRADO', ''].join('\t'))
+    .join('\n');
+  try {
+    await navigator.clipboard.writeText(text);
+    setStatus('● Copiado. Pégalo en Excel, WhatsApp o un correo.');
+  } catch (e) {
+    const area = document.createElement('textarea');
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand('copy'); setStatus('● Copiado.'); } catch (err) { setStatus('No se pudo copiar.'); }
+    document.body.removeChild(area);
+  }
+}
+
+// ---------- Agregar un cliente nuevo ----------
+function canonicalDistrict(text) {
+  const key = normTxt(text);
+  if (!key) return '';
+  const known = LIMA_DISTRICTS.find(d => normTxt(d) === key);
+  if (known) return known;
+  // "surco" o "villa salvador": si todas las palabras están en UN solo distrito, es ese.
+  const words = key.split(' ');
+  const partial = LIMA_DISTRICTS.filter(d => {
+    const parts = normTxt(d).split(' ');
+    return words.every(w => parts.includes(w));
+  });
+  if (partial.length === 1) return partial[0];
+  const seen = results.find(r => r.found && normTxt(r.distrito) === key);
+  return seen ? seen.distrito : '';
+}
+
+function orderedAddress(address, district) {
+  const r = cleanAddress(address, district);
+  const base = [r.clean, r.interior].filter(Boolean).join(' ');
+  return base + (r.reference ? ' | REF: ' + r.reference : '');
+}
+
+function updateAddPreview() {
+  const address = $('addAddress').value.trim();
+  const district = $('addDistrict').value.trim();
+  const name = $('addName').value.trim().toUpperCase();
+  const ordered = address ? orderedAddress(address, district) : '—';
+  const canon = district ? (canonicalDistrict(district) || district.toUpperCase()) : '—';
+  $('addPreview').textContent = 'Así se guardará → ' + (name || '—') + ' · ' + ordered + ' · ' + canon;
+}
+
+function openAdd(dni) {
+  const list = $('districtOptions');
+  list.innerHTML = '';
+  const names = new Set(LIMA_DISTRICTS);
+  results.forEach(r => { if (r.found && r.distrito) names.add(r.distrito); });
+  [...names].sort((a, b) => a.localeCompare(b, 'es')).forEach(n => {
+    const o = document.createElement('option');
+    o.value = n;
+    list.appendChild(o);
+  });
+  $('addDni').value = dni || '';
+  $('addName').value = '';
+  $('addAddress').value = '';
+  $('addDistrict').value = '';
+  $('addMsg').textContent = '';
+  updateAddPreview();
+  $('addScreen').style.display = 'flex';
+  setTimeout(() => $(dni ? 'addName' : 'addDni').focus(), 30);
+}
+
+async function saveAdd() {
+  const dni = $('addDni').value.replace(/\D/g, '');
+  const name = $('addName').value.trim().replace(/\s+/g, ' ').toUpperCase();
+  const address = $('addAddress').value.trim();
+  const typedDistrict = $('addDistrict').value.trim();
+  const msg = $('addMsg');
+
+  if (!/^\d{5,8}$/.test(dni) || !dniKey(dni)) { msg.textContent = 'El DNI debe tener entre 5 y 8 dígitos.'; return; }
+  if (!name) { msg.textContent = 'Escribe el nombre completo.'; return; }
+  if (!address) { msg.textContent = 'Escribe la dirección.'; return; }
+  if (!typedDistrict) { msg.textContent = 'Escribe el distrito correcto.'; return; }
+
+  let district = canonicalDistrict(typedDistrict);
+  if (!district) {
+    if (!window.confirm('"' + typedDistrict + '" no está en la lista de distritos de Lima y Callao. ¿Guardarlo tal como lo escribiste?')) return;
+    district = typedDistrict.toUpperCase();
+  }
+  const ordered = orderedAddress(address, district);
+
+  const button = $('addSave');
+  button.disabled = true;
+  msg.textContent = 'Guardando...';
+  try {
+    await Auth.rpc('agregar_cliente', { p_dni: dni, p_nombre: name, p_direccion: ordered, p_distrito: district });
+    const fresh = { dni, found: true, nombre: name, direccion: ordered, distrito: district, voz: shortName(name) };
+    const at = results.findIndex(r => r.dni === dni);
+    if (at >= 0) results[at] = fresh; else results.push(fresh);
+    logRows([fresh], 'AGREGADO MANUAL');
+    activeFilter = 'ALL';
+    renderResults();
+    $('addScreen').style.display = 'none';
+    setStatus('● Cliente agregado y guardado con tu correo: ' + name + ' → ' + district + '.');
+    say('Cliente ' + fresh.voz + ' agregado. Su distrito es ' + titleCase(district) + '.');
+  } catch (e) {
+    msg.textContent = friendlyError(e);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+// ---------- Administrador: cargar clientes ----------
+let pendingRows = [];
+
+function normHeader(value) {
+  return String(value ?? '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+}
+
+// El administrador no se ve en la página: solo aparece un botón dentro de Ajustes (⚙)
+// para quien es administrador. Todo lo demás está en una ventana que se abre ahí.
+function showAdmin(admin) {
+  $('adminEntry').style.display = admin ? 'block' : 'none';
+  if (!admin) closeAdmin();
+}
+
+function openAdmin() {
+  $('settingsPanel').style.display = 'none';
+  $('adminScreen').style.display = 'flex';
+}
+
+function closeAdmin() {
+  $('adminScreen').style.display = 'none';
+  $('adminPass').value = '';
+  $('adminConfirm').style.display = 'none';
+  pendingRows = [];
+  $('adminMsg').textContent = 'Elige el Excel para revisarlo antes de subirlo.';
+}
+
+function downloadTemplate() {
+  if (!window.XLSX) return;
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.aoa_to_sheet([
+    ['DNI', 'NOMBRE', 'DIRECCION', 'DISTRITO', 'NOMBRE VOZ'],
+    ['44475858', 'OSKAR LEON HUISA VILELA', 'JR LOS PINOS 123', 'VILLA EL SALVADOR', '']
+  ]);
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Clientes');
+  XLSX.writeFile(workbook, 'Plantilla_clientes.xlsx');
+}
+
+async function refreshAdmin() {
+  let admin = false;
+  if (Auth.ready() && !Auth.setupMode()) {
+    try { admin = !!(await Auth.rpc('es_admin')); } catch (e) { admin = false; }
+  }
+  showAdmin(admin);
+}
+
+async function adminReadFile(file) {
+  pendingRows = [];
+  const uploadButton = $('btnAdminUpload');
+  $('adminConfirm').style.display = 'none';
+  $('adminPass').value = '';
+  uploadButton.disabled = true;
+  $('adminMsg').textContent = 'Leyendo el Excel...';
+  try {
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: '' });
+    const header = (rows[0] || []).map(normHeader);
+    const find = names => header.findIndex(h => names.includes(h));
+
+    const colDni = find(['DNI', 'DOCUMENTO', 'NRO DOCUMENTO', 'NUMERO DE DOCUMENTO']);
+    const colName = find(['NOMBRE', 'NOMBRE COMPLETO', 'NOMBRES Y APELLIDOS', 'APELLIDOS Y NOMBRES', 'CLIENTE']);
+    const colAddress = find(['DIRECCION', 'DIRECCION CLIENTE', 'DOMICILIO']);
+    const colDistrict = find(['DISTRITO', 'DISTRITO CORRECTO']);
+    const colVoice = find(['NOMBRE VOZ', 'NOMBRE_VOZ', 'NOMBRE CORTO']);
+    if (colDni < 0 || colName < 0 || colDistrict < 0) {
+      throw new Error('El Excel debe tener al menos las columnas DNI, NOMBRE y DISTRITO.');
+    }
+
+    const map = new Map();
+    let invalid = 0;
+    let duplicates = 0;
+    const dataRows = rows.slice(1).filter(r => String(r.join('')).trim());
+    dataRows.forEach(r => {
+      // El DNI puede venir de 5 a 8 dígitos (hay clientes que lo escribieron mal).
+      const raw = String(r[colDni] ?? '').replace(/\D/g, '');
+      const key = dniKey(raw);
+      const nombre = String(r[colName] ?? '').trim();
+      const distrito = String(r[colDistrict] ?? '').trim();
+      if (raw.length < 5 || raw.length > 8 || !key || !nombre || !distrito) { invalid++; return; }
+      if (map.has(key)) duplicates++;
+      map.set(key, {
+        dni: raw,
+        nombre,
+        direccion: colAddress >= 0 ? String(r[colAddress] ?? '').trim() : '',
+        distrito,
+        nombre_voz: colVoice >= 0 ? (String(r[colVoice] ?? '').trim() || null) : null,
+        actualizado: new Date().toISOString()
+      });
+    });
+
+    pendingRows = [...map.values()];
+    $('adminMsg').textContent =
+      pendingRows.length + ' clientes válidos' +
+      (invalid ? ' · ' + invalid + ' filas omitidas (DNI de 5 a 8 dígitos, nombre y distrito son obligatorios)' : '') +
+      (duplicates ? ' · ' + duplicates + ' repetidos (queda el último)' : '') +
+      (pendingRows.length
+        ? ' · Ejemplo: ' + pendingRows[0].dni + ' · ' + pendingRows[0].nombre + ' · ' + pendingRows[0].distrito
+        : '');
+    if (pendingRows.length) {
+      uploadButton.textContent = 'Subir ' + pendingRows.length + ' clientes';
+      $('adminConfirm').style.display = 'block';
+      uploadButton.disabled = false;
+    }
+  } catch (e) {
+    $('adminMsg').textContent = 'No se pudo leer el Excel: ' + (e.message || e);
+  }
+}
+
+async function adminUpload() {
+  if (!pendingRows.length) return;
+  const password = $('adminPass').value;
+  if (!password) { $('adminMsg').textContent = 'Escribe tu contraseña para confirmar la subida.'; return; }
+  try {
+    await Auth.verifyPassword(password);
+  } catch (e) {
+    $('adminMsg').textContent = 'Contraseña incorrecta. No se subió nada.';
+    return;
+  }
+  $('adminPass').value = '';
+  if (!window.confirm('Se subirán ' + pendingRows.length + ' clientes. Si un DNI ya existe, se actualizan sus datos. ¿Continuar?')) return;
+  const button = $('btnAdminUpload');
+  button.disabled = true;
+  try {
+    for (let i = 0; i < pendingRows.length; i += 500) {
+      await Auth.upsertClientes(pendingRows.slice(i, i + 500));
+      $('adminMsg').textContent = 'Subiendo... ' + Math.min(i + 500, pendingRows.length) + ' de ' + pendingRows.length;
+    }
+    $('adminMsg').textContent = '✓ Base actualizada: ' + pendingRows.length + ' clientes.';
+    pendingRows = [];
+    $('adminConfirm').style.display = 'none';
+  } catch (e) {
+    $('adminMsg').textContent = 'No se pudo subir: ' + friendlyError(e);
+    button.disabled = false;
+  }
+}
+
+async function exportAdminLog() {
+  try {
+    const rows = await Auth.fetchRows('consultas_log', 'fecha', 5000);
+    const sheet = [['FECHA', 'USUARIO', 'CANTIDAD DE DNI', 'ENCONTRADOS', 'DNI CONSULTADOS']];
+    rows.forEach(r => sheet.push([new Date(r.fecha).toLocaleString('es-PE'), r.usuario, (r.dnis || []).length, r.encontrados, (r.dnis || []).join(', ')]));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(sheet), 'Consultas');
+    XLSX.writeFile(workbook, 'Registro_de_consultas_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    $('adminMsg').textContent = '✓ Registro exportado: ' + rows.length + ' consultas.';
+  } catch (e) {
+    $('adminMsg').textContent = 'No se pudo exportar: ' + friendlyError(e);
+  }
+}
+
+async function exportAdminAltas() {
+  try {
+    const rows = await Auth.fetchRows('clientes_historial', 'fecha', 5000);
+    const sheet = [['FECHA', 'AGREGADO POR', 'ACCION', 'DNI', 'NOMBRE', 'DIRECCION', 'DISTRITO']];
+    rows.forEach(r => sheet.push([new Date(r.fecha).toLocaleString('es-PE'), r.usuario, r.accion, r.dni, r.nombre, r.direccion, r.distrito]));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(sheet), 'Altas manuales');
+    XLSX.writeFile(workbook, 'Altas_manuales_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    $('adminMsg').textContent = '✓ Altas exportadas: ' + rows.length + '.';
+  } catch (e) {
+    $('adminMsg').textContent = 'No se pudo exportar: ' + friendlyError(e);
+  }
+}
+
+// ---------- Pantalla de inicio de sesión ----------
+const gateMsg = $('gateMsg');
+let gateMode = 'login';        // login | setup | change | loading | config
+let gateReady = false;
+let gateStartError = '';
+
+function wipeScreen(clearLog) {
+  stopVoice();
+  $('addScreen').style.display = 'none';
+  if (clearLog) { sessionLog = []; updateExportAll(); }
+  results = [];
+  meta = { invalid: [], duplicates: 0 };
+  readerItems = [];
+  $('dniInput').value = '';
+  $('resultBody').innerHTML = '';
+  $('chips').innerHTML = '';
+  $('summaryText').textContent = '';
+  $('readerStatus').textContent = '';
+  $('resultsCard').style.display = 'none';
+  showAdmin(false);
+  pendingRows = [];
+  $('bars').innerHTML = '';
+  closeAdmin();
+  setStatus('Escribe uno o varios DNI y pulsa CONSULTAR.');
+}
+
+function setGateMode(mode) {
+  gateMode = mode;
+  const texts = {
+    login: ['Bienvenido a', 'Inicia sesión para continuar.'],
+    setup: ['Crea tu contraseña', 'Elige una contraseña para entrar la próxima vez.'],
+    change: ['Cambiar contraseña', 'Escribe tu nueva contraseña.'],
+    loading: ['Bienvenido a', 'Verificando sesión...'],
+    config: ['Conectar', 'Escribe los datos de tu proyecto de Supabase (solo la primera vez).']
+  };
+  $('gateTitle').textContent = texts[mode][0];
+  $('gateSub').textContent = texts[mode][1];
+  $('gateLoginGroup').style.display = mode === 'login' ? 'block' : 'none';
+  $('gateNewGroup').style.display = (mode === 'setup' || mode === 'change') ? 'block' : 'none';
+  $('gateConfigGroup').style.display = mode === 'config' ? 'block' : 'none';
+  $('gateCancel').style.display = mode === 'change' ? '' : 'none';
+  gateMsg.textContent = (mode === 'login' && gateStartError) ? gateStartError : '';
+}
+
+function lockApp(mode) {
+  const wasVisible = $('loginScreen').style.display === 'flex';
+  document.body.classList.add('locked');
+  $('loginScreen').style.display = 'flex';
+  if (!wasVisible && mode !== 'change') wipeScreen(true);
+  if (mode === 'login') greeted = false;   // al cerrar sesión no queda nada a la vista
+  if (!wasVisible || gateMode !== mode) setGateMode(mode);
+}
+
+function unlockApp() {
+  const wasLocked = document.body.classList.contains('locked');
+  document.body.classList.remove('locked');
+  $('loginScreen').style.display = 'none';
+  gateMode = 'login';
+  if (wasLocked) greet();
+}
+
+function updateAccountBar() {
+  const show = Auth.ready();
+  $('accountBar').style.display = show ? 'flex' : 'none';
+  $('accountEmail').textContent = show ? Auth.email() : '';
+}
+
+function applyGate() {
+  updateAccountBar();
+  if (!Auth.configured()) { lockApp('config'); return; }
+  if (!gateReady) { lockApp('loading'); return; }
+  if (!Auth.ready()) { lockApp('login'); return; }
+  if (Auth.setupMode()) { lockApp('setup'); return; }
+  if (gateMode === 'change') { lockApp('change'); return; }
+  unlockApp();
+}
+
+// Cierra la sesión tras un rato sin usar la página.
+let idleTimer = null;
+function resetIdle() {
+  clearTimeout(idleTimer);
+  if (!Auth.ready()) return;
+  idleTimer = setTimeout(async () => {
+    gateStartError = 'Se cerró la sesión por inactividad. Inicia sesión de nuevo.';
+    try { await Auth.signOut(); } catch (e) {}
+    onAuth();
+    if (gateMode === 'login') gateMsg.textContent = gateStartError;
+  }, IDLE_MS);
+}
+['click', 'keydown', 'mousemove', 'touchstart'].forEach(ev =>
+  document.addEventListener(ev, resetIdle, { passive: true }));
+
+function onAuth() {
+  applyGate();
+  resetIdle();
+  if (gateReady && Auth.ready() && gateMode === 'login' && !Auth.setupMode()) refreshAdmin();
+}
+
+$('gateLogin').addEventListener('click', async () => {
+  const button = $('gateLogin');
+  const mail = $('gateEmail').value.trim();
+  const pass = $('gatePass').value;
+  if (!mail || !pass) { gateMsg.textContent = 'Escribe tu correo y tu contraseña.'; return; }
+  button.disabled = true;
+  gateMsg.textContent = 'Entrando...';
+  try {
+    await Auth.signIn(mail, pass);
+    $('gatePass').value = '';
+    gateMsg.textContent = '';
+    gateStartError = '';
+  } catch (e) {
+    gateMsg.textContent = friendlyError(e);
+  } finally {
+    button.disabled = false;
+  }
+  onAuth();
+});
+$('gatePass').addEventListener('keydown', e => { if (e.key === 'Enter') $('gateLogin').click(); });
+
+$('gateForgot').addEventListener('click', async () => {
+  const mail = $('gateEmail').value.trim();
+  if (!mail) { gateMsg.textContent = 'Escribe tu correo arriba y vuelve a pulsar "Restablecer contraseña".'; return; }
+  gateMsg.textContent = 'Enviando correo...';
+  try {
+    await Auth.sendReset(mail);
+    gateMsg.textContent = 'Te enviamos un correo con un enlace para crear una contraseña nueva. Revisa también la carpeta de spam.';
+  } catch (e) {
+    gateMsg.textContent = friendlyError(e);
+  }
+});
+
+$('gateSave').addEventListener('click', async () => {
+  const pass = $('gateNew').value;
+  const again = $('gateNew2').value;
+  if (pass.length < 8) { gateMsg.textContent = 'La contraseña debe tener al menos 8 caracteres.'; return; }
+  if (pass !== again) { gateMsg.textContent = 'Las dos contraseñas no coinciden.'; return; }
+  try {
+    await Auth.updatePassword(pass);
+  } catch (e) {
+    gateMsg.textContent = friendlyError(e);
+    return;
+  }
+  $('gateNew').value = '';
+  $('gateNew2').value = '';
+  Auth.endSetup();
+  gateMode = 'login';
+  setStatus('● Contraseña guardada. Úsala la próxima vez que entres.');
+  onAuth();
+});
+$('gateNew2').addEventListener('keydown', e => { if (e.key === 'Enter') $('gateSave').click(); });
+$('gateCancel').addEventListener('click', () => { gateMode = 'login'; onAuth(); });
+
+$('accChange').addEventListener('click', () => { gateMode = 'change'; onAuth(); });
+$('accOut').addEventListener('click', async () => {
+  try { await Auth.signOut(); } catch (e) {}
+  gateStartError = '';
+  onAuth();
+});
+
+$('cfgSave').addEventListener('click', () => {
+  const url = cleanSupabaseUrl($('cfgUrl').value);
+  const key = $('cfgKey').value.trim();
+  if (!/^https:\/\/\S+$/.test(url) || !key) {
+    gateMsg.textContent = 'Escribe la URL del proyecto (empieza con https://) y la clave "anon public".';
+    return;
+  }
+  if (/(^|\.)supabase\.com$/i.test(new URL(url).hostname)) {
+    gateMsg.textContent = 'Esa es la dirección del panel de Supabase. Necesitas la "Project URL", que termina en .supabase.co.';
+    return;
+  }
+  if (looksLikeSecret(key)) {
+    gateMsg.textContent = 'Esa es una clave secreta (service_role). No la uses aquí: copia la clave "anon public".';
+    return;
+  }
+  try {
+    localStorage.setItem('supabaseUrl', url);
+    localStorage.setItem('supabaseKey', key);
+  } catch (e) {
+    gateMsg.textContent = 'No se pudo guardar la conexión en este navegador.';
+    return;
+  }
+  location.reload();
+});
+
+// ---------- Botones de la página ----------
+$('btnConsult').addEventListener('click', consult);
+$('dniInput').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) consult(); });
+$('btnClear').addEventListener('click', () => { wipeScreen(false); });
+$('btnDictate').addEventListener('click', startDictation);
+$('btnSpeakSummary').addEventListener('click', speakSummary);
+$('btnReadAll').addEventListener('click', readerStart);
+$('btnPause').addEventListener('click', togglePause);
+$('btnSkip').addEventListener('click', readerSkip);
+$('btnStop').addEventListener('click', () => { stopVoice(); $('readerStatus').textContent = ''; });
+$('btnExport').addEventListener('click', exportExcel);
+$('btnCopy').addEventListener('click', copyResults);
+
+$('btnAddNew').addEventListener('click', () => openAdd(''));
+$('btnExportAll').addEventListener('click', exportAll);
+['addName', 'addAddress', 'addDistrict'].forEach(id => $(id).addEventListener('input', updateAddPreview));
+$('addSave').addEventListener('click', saveAdd);
+$('addCancel').addEventListener('click', () => { $('addScreen').style.display = 'none'; });
+$('btnAdminOpen').addEventListener('click', openAdmin);
+$('btnAdminClose').addEventListener('click', closeAdmin);
+$('btnExportLog').addEventListener('click', exportAdminLog);
+$('btnExportAltas').addEventListener('click', exportAdminAltas);
+
+// Color de la página y voz del asistente (se recuerdan en este navegador).
+function applyTheme(name) {
+  if (!['rosa', 'blanco'].includes(name)) name = 'rosa';
+  document.body.dataset.theme = name;
+  $('themeSelect').value = name;
+  try { localStorage.setItem('consultaTema', name); } catch (e) {}
+}
+let savedTheme = 'rosa';
+try { savedTheme = localStorage.getItem('consultaTema') || 'rosa'; } catch (e) {}
+applyTheme(savedTheme);
+$('themeSelect').addEventListener('change', () => applyTheme($('themeSelect').value));
+
+$('btnSettings').addEventListener('click', e => {
+  e.stopPropagation();
+  const panel = $('settingsPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+document.addEventListener('click', e => {
+  const panel = $('settingsPanel');
+  if (panel.style.display !== 'none' && !panel.contains(e.target) && e.target !== $('btnSettings')) panel.style.display = 'none';
+});
+
+fillVoiceSelect();
+if ('speechSynthesis' in window) {
+  if (window.speechSynthesis.addEventListener) window.speechSynthesis.addEventListener('voiceschanged', fillVoiceSelect);
+  else window.speechSynthesis.onvoiceschanged = fillVoiceSelect;
+}
+$('voiceSelect').addEventListener('change', () => {
+  preferredVoice = $('voiceSelect').value;
+  try { localStorage.setItem('consultaVoz', preferredVoice); } catch (e) {}
+});
+$('btnVoiceTest').addEventListener('click', () => {
+  stopVoice();
+  say('Hola, equipo ' + TEAM_NAME + '. Así suena esta voz. Si te gusta, déjala así.');
+});
+
+$('assistantOn').checked = assistantOn;
+$('assistantOn').addEventListener('change', () => {
+  assistantOn = $('assistantOn').checked;
+  try { localStorage.setItem('asistenteVoz', assistantOn ? 'on' : 'off'); } catch (e) {}
+  if (!assistantOn) stopVoice();
+});
+$('greetText').textContent = greetingWord() + ', equipo ' + TEAM_NAME;
+
+$('btnAdminPick').addEventListener('click', () => $('adminFile').click());
+$('btnTemplate').addEventListener('click', downloadTemplate);
+$('adminFile').addEventListener('change', () => {
+  const file = $('adminFile').files[0];
+  if (file) adminReadFile(file);
+  $('adminFile').value = '';
+});
+$('btnAdminUpload').addEventListener('click', adminUpload);
+
+// ---------- Arranque ----------
+applyGate();
+Auth.init(onAuth)
+  .catch(e => { gateStartError = 'No se pudo conectar: ' + (e.message || e); })
+  .finally(() => { gateReady = true; onAuth(); });
+</script>
+</body>
+</html>
