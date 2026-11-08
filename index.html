@@ -250,7 +250,7 @@ body[data-theme="blanco"] .login-card, body[data-theme="blanco"] .add-card { box
 
 <div id="addScreen" role="dialog" aria-modal="true" aria-label="Agregar cliente nuevo">
   <div class="add-card">
-    <h3>Agregar cliente nuevo</h3>
+    <h3 id="addTitle">Agregar cliente nuevo</h3>
     <div class="sub">La dirección se ordena sola y queda guardada con tu correo en el historial.</div>
     <label for="addDni">DNI</label>
     <input id="addDni" type="text" inputmode="numeric" maxlength="8" autocomplete="off">
@@ -330,6 +330,41 @@ body[data-theme="blanco"] .login-card, body[data-theme="blanco"] .add-card { box
     <div class="notice" id="status" role="status">Escribe uno o varios DNI y pulsa Consultar.</div>
   </section>
 
+
+  <section class="card" id="addrCard">
+    <h3>📍 Varias direcciones en Google Maps</h3>
+    <div class="sub">Pega direcciones (una por línea, puedes poner el distrito al final) o sube un Excel con columnas DIRECCION y DISTRITO (opcional). Se ordenan y se abren en Google Maps.</div>
+    <textarea id="addrInput" style="font-size:15px;letter-spacing:0;font-family:inherit;margin-top:12px" placeholder="AV. LARCO 345 MIRAFLORES&#10;JR. UNION 120, LIMA&#10;CALLE LOS PINOS 88 SURCO" spellcheck="false"></textarea>
+    <div class="row">
+      <button class="secondary" id="btnAddrFile">⇧ Subir Excel</button>
+      <input id="addrFile" type="file" accept=".xlsx,.xls" style="display:none">
+      <button class="secondary" id="btnAddrFromDni">↳ Usar los DNI consultados</button>
+      <select id="addrOrder" aria-label="Orden de las direcciones">
+        <option value="district">Orden: por distrito y calle</option>
+        <option value="input">Orden: como los ingresé</option>
+        <option value="route" id="optRoute" disabled>Orden: ruta más corta (Google)</option>
+      </select>
+      <button class="primary" id="btnAddrGo">Ordenar</button>
+      <button class="secondary" id="btnAddrGoogle" style="display:none">✨ Validar con Google</button>
+      <button class="secondary" id="btnAddrClear">Limpiar</button>
+    </div>
+    <div class="notice" id="addrStatus" role="status">Pega o sube las direcciones y pulsa Ordenar.</div>
+    <div id="addrResult" style="display:none">
+      <div class="row" id="addrRoutes"></div>
+      <div class="table-wrap" style="margin-top:12px">
+        <table>
+          <thead><tr><th>#</th><th>Dirección</th><th>Distrito</th><th></th></tr></thead>
+          <tbody id="addrBody"></tbody>
+        </table>
+      </div>
+      <div class="row">
+        <button class="primary" id="btnAddrExport">⇩ Exportar a Excel (con link)</button>
+        <button class="secondary" id="btnAddrCopy">📋 Copiar</button>
+      </div>
+      <div class="sub" style="margin-top:10px">Las rutas se arman con el orden de la lista (no calculan el camino más corto). Cada ruta lleva hasta 10 paradas; la siguiente empieza donde terminó la anterior.</div>
+    </div>
+  </section>
+
   <section id="resultsCard" style="display:none">
     <div class="kpis">
       <div class="kpi"><div class="kpi-num" id="kpiTotal">0</div><div class="kpi-label">DNI consultados</div></div>
@@ -386,8 +421,12 @@ const $ = id => document.getElementById(id);
 
 // Para dejar la conexión fija en el archivo, pega aquí los datos de tu proyecto.
 // También se pueden escribir en la pantalla de inicio (se guardan en el navegador).
-const SUPABASE_URL = 'https://khqtdhhwbfsjdgwuvijx.supabase.co'; 
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtocXRkaGh3YmZzamRnd3V2aWp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyNDI0MjEsImV4cCI6MjEwODgxODQyMX0.fj8QuL36mU0ndJax9X1NMrnHjj6E5vCS3Lc-Sp4wGw8';  
+const SUPABASE_URL = '';       // ejemplo: https://abcdefgh.supabase.co
+const SUPABASE_ANON_KEY = '';  // clave "anon public" (NUNCA la "service_role")
+// Clave de Google Maps (opcional, cuando tengas la facturación activa).
+// Pégala entre las comillas. Si está vacía, todo funciona con enlaces gratuitos de Maps.
+// IMPORTANTE: en Google Cloud restringe la clave a tu dominio (referente HTTP) y solo a "Geocoding API".
+const GOOGLE_MAPS_API_KEY = '';
 const IDLE_MS = 30 * 60 * 1000; // la sesión se cierra tras 30 minutos sin usar
 const MAX_DNI = 500;
 
@@ -934,6 +973,20 @@ function renderResults(animate = true) {
         say(r.voz + '. Su distrito correcto es ' + titleCase(r.distrito) + '.');
       });
       tdVoice.appendChild(b);
+      const m = document.createElement('button');
+      m.className = 'secondary mini-btn';
+      m.style.marginLeft = '6px';
+      m.textContent = '📍';
+      m.title = 'Ver en Google Maps';
+      m.addEventListener('click', () => openMaps(mapsSearchUrl(r.direccion, r.distrito)));
+      tdVoice.appendChild(m);
+      const ed = document.createElement('button');
+      ed.className = 'secondary mini-btn';
+      ed.style.marginLeft = '6px';
+      ed.textContent = '✏️';
+      ed.title = 'Corregir dirección o distrito';
+      ed.addEventListener('click', () => openEdit(r));
+      tdVoice.appendChild(ed);
     } else {
       const add = document.createElement('button');
       add.className = 'secondary mini-btn';
@@ -1238,16 +1291,28 @@ function exportRows() {
   return list;
 }
 
+// Hoja de Excel donde la columna `col` (0 = A) tiene enlaces en los que se puede hacer clic.
+function linkSheet(aoa, col) {
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const letter = XLSX.utils.encode_col(col);
+  for (let i = 1; i < aoa.length; i++) {
+    const url = aoa[i][col];
+    if (url && ws[letter + (i + 1)]) ws[letter + (i + 1)].l = { Target: url };
+  }
+  ws['!cols'] = aoa[0].map((h, c) => ({ wch: c === col ? 40 : Math.min(45, Math.max(12, String(h).length + 4)) }));
+  return ws;
+}
+
 function exportExcel() {
   if (!results.length || !window.XLSX) return;
   const workbook = XLSX.utils.book_new();
 
-  const clientes = [['DNI', 'CLIENTE', 'DIRECCION', 'DISTRITO CORRECTO', 'ESTADO']];
+  const clientes = [['DNI', 'CLIENTE', 'DIRECCION', 'DISTRITO CORRECTO', 'ESTADO', 'ENLACE GOOGLE MAPS']];
   exportRows().forEach(r => clientes.push([
     r.dni, r.found ? r.nombre : '', r.found ? r.direccion : '', r.found ? r.distrito : '',
-    r.found ? 'ENCONTRADO' : 'NO ENCONTRADO'
+    r.found ? 'ENCONTRADO' : 'NO ENCONTRADO', r.found && r.direccion ? mapsSearchUrl(r.direccion, r.distrito) : ''
   ]));
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(clientes), 'Clientes');
+  XLSX.utils.book_append_sheet(workbook, linkSheet(clientes, 5), 'Clientes');
 
   const resumen = [['DISTRITO', 'CANTIDAD DE CLIENTES']];
   groupByDistrict().forEach(g => resumen.push([g.distrito, g.items.length]));
@@ -1266,16 +1331,16 @@ function exportExcel() {
 function exportAll() {
   if (!sessionLog.length || !window.XLSX) return;
   const workbook = XLSX.utils.book_new();
-  const rows = [['FECHA Y HORA', 'CONSULTADO POR', 'DNI', 'CLIENTE', 'DIRECCION', 'DISTRITO CORRECTO', 'ESTADO']];
-  sessionLog.forEach(r => rows.push([r.fecha, r.usuario, r.dni, r.cliente, r.direccion, r.distrito, r.estado]));
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'Consultas');
+  const rows = [['FECHA Y HORA', 'CONSULTADO POR', 'DNI', 'CLIENTE', 'DIRECCION', 'DISTRITO CORRECTO', 'ESTADO', 'ENLACE GOOGLE MAPS']];
+  sessionLog.forEach(r => rows.push([r.fecha, r.usuario, r.dni, r.cliente, r.direccion, r.distrito, r.estado, r.direccion ? mapsSearchUrl(r.direccion, r.distrito) : '']));
+  XLSX.utils.book_append_sheet(workbook, linkSheet(rows, 7), 'Consultas');
   XLSX.writeFile(workbook, 'Todo_lo_consultado_' + new Date().toISOString().slice(0, 10) + '.xlsx');
 }
 
 async function copyResults() {
   if (!results.length) return;
   const text = exportRows()
-    .map(r => r.found ? [r.dni, r.nombre, r.distrito].join('\t') : [r.dni, 'NO ENCONTRADO', ''].join('\t'))
+    .map(r => r.found ? [r.dni, r.nombre, r.distrito, r.direccion ? mapsSearchUrl(r.direccion, r.distrito) : ''].join('\t') : [r.dni, 'NO ENCONTRADO', '', ''].join('\t'))
     .join('\n');
   try {
     await navigator.clipboard.writeText(text);
@@ -1317,12 +1382,32 @@ function updateAddPreview() {
   const address = $('addAddress').value.trim();
   const district = $('addDistrict').value.trim();
   const name = $('addName').value.trim().toUpperCase();
-  const ordered = address ? orderedAddress(address, district) : '—';
+  const ordered = address ? (editing ? address.toUpperCase() : orderedAddress(address, district)) : '—';
   const canon = district ? (canonicalDistrict(district) || district.toUpperCase()) : '—';
   $('addPreview').textContent = 'Así se guardará → ' + (name || '—') + ' · ' + ordered + ' · ' + canon;
 }
 
+let editing = false;
+function setEditMode(on) {
+  editing = on;
+  $('addTitle').textContent = on ? 'Corregir dirección y distrito' : 'Agregar cliente nuevo';
+  $('addSave').textContent = on ? 'Guardar corrección' : 'Guardar cliente';
+  $('addDni').disabled = on;
+  $('addName').disabled = on;
+}
+
+function openEdit(r) {
+  openAdd(r.dni);
+  setEditMode(true);
+  $('addName').value = r.nombre;
+  $('addAddress').value = r.direccion;
+  $('addDistrict').value = r.distrito;
+  updateAddPreview();
+  setTimeout(() => $('addAddress').focus(), 40);
+}
+
 function openAdd(dni) {
+  setEditMode(false);
   const list = $('districtOptions');
   list.innerHTML = '';
   const names = new Set(LIMA_DISTRICTS);
@@ -1359,22 +1444,23 @@ async function saveAdd() {
     if (!window.confirm('"' + typedDistrict + '" no está en la lista de distritos de Lima y Callao. ¿Guardarlo tal como lo escribiste?')) return;
     district = typedDistrict.toUpperCase();
   }
-  const ordered = orderedAddress(address, district);
+  const ordered = editing ? address.replace(/\s+/g, ' ').toUpperCase() : orderedAddress(address, district);
 
   const button = $('addSave');
   button.disabled = true;
   msg.textContent = 'Guardando...';
   try {
-    await Auth.rpc('agregar_cliente', { p_dni: dni, p_nombre: name, p_direccion: ordered, p_distrito: district });
+    if (editing) await Auth.rpc('corregir_cliente', { p_dni: dni, p_direccion: ordered, p_distrito: district });
+    else await Auth.rpc('agregar_cliente', { p_dni: dni, p_nombre: name, p_direccion: ordered, p_distrito: district });
     const fresh = { dni, found: true, nombre: name, direccion: ordered, distrito: district, voz: shortName(name) };
     const at = results.findIndex(r => r.dni === dni);
     if (at >= 0) results[at] = fresh; else results.push(fresh);
-    logRows([fresh], 'AGREGADO MANUAL');
+    logRows([fresh], editing ? 'CORREGIDO' : 'AGREGADO MANUAL');
     activeFilter = 'ALL';
     renderResults();
     $('addScreen').style.display = 'none';
-    setStatus('● Cliente agregado y guardado con tu correo: ' + name + ' → ' + district + '.');
-    say('Cliente ' + fresh.voz + ' agregado. Su distrito es ' + titleCase(district) + '.');
+    setStatus((editing ? '● Corrección guardada con tu correo: ' : '● Cliente agregado y guardado con tu correo: ') + name + ' → ' + district + '.');
+    say(editing ? 'Corregido. El distrito de ' + fresh.voz + ' es ' + titleCase(district) + '.' : 'Cliente ' + fresh.voz + ' agregado. Su distrito es ' + titleCase(district) + '.');
   } catch (e) {
     msg.textContent = friendlyError(e);
   } finally {
@@ -1560,6 +1646,7 @@ function wipeScreen(clearLog) {
   meta = { invalid: [], duplicates: 0 };
   readerItems = [];
   $('dniInput').value = '';
+  addrClear();
   $('resultBody').innerHTML = '';
   $('chips').innerHTML = '';
   $('summaryText').textContent = '';
@@ -1733,6 +1820,232 @@ $('cfgSave').addEventListener('click', () => {
 // ---------- Botones de la página ----------
 $('btnConsult').addEventListener('click', consult);
 $('dniInput').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) consult(); });
+
+// ---------- Varias direcciones + Google Maps ----------
+let addrRows = [];   // [{ direccion, distrito }]
+const ADDR_MAX = 300;
+const ADDR_ROUTE = 10;   // paradas por ruta de Google Maps
+
+function mapsQuery(address, district) {
+  return [String(address || '').trim(), String(district || '').trim(), 'Perú'].filter(Boolean).join(', ');
+}
+function mapsSearchUrl(address, district) {
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(mapsQuery(address, district));
+}
+function mapsRouteUrl(stops) {
+  const q = x => encodeURIComponent(x.lat != null ? x.lat + ',' + x.lng : mapsQuery(x.direccion, x.distrito));
+  let url = 'https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=' + q(stops[0]) +
+    '&destination=' + q(stops[stops.length - 1]);
+  const mid = stops.slice(1, -1);
+  if (mid.length) url += '&waypoints=' + mid.map(q).join('%7C');
+  return url;
+}
+function openMaps(url) { window.open(url, '_blank', 'noopener'); }
+
+function detectDistrict(text) {
+  const t = ' ' + normTxt(text) + ' ';
+  let best = '';
+  LIMA_DISTRICTS.forEach(d => {
+    if (t.includes(' ' + normTxt(d) + ' ') && d.length > best.length) best = d;
+  });
+  return best;
+}
+
+function addrSetStatus(text) { $('addrStatus').textContent = text; }
+
+function addrParse() {
+  const lines = $('addrInput').value.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  return lines.map(line => ({ direccion: line, distrito: detectDistrict(line) }));
+}
+
+function addrSorted() {
+  const list = addrRows.map((r, i) => ({ ...r, i, clean: orderedAddress(r.direccion, r.distrito) }));
+  if ($('addrOrder').value === 'route') return nearestOrder(list);
+  if ($('addrOrder').value === 'district') {
+    list.sort((a, b) => {
+      if (!a.distrito !== !b.distrito) return a.distrito ? -1 : 1;   // sin distrito al final
+      return String(a.distrito).localeCompare(String(b.distrito), 'es') ||
+        a.clean.localeCompare(b.clean, 'es', { numeric: true }) || a.i - b.i;
+    });
+  }
+  return list;
+}
+
+// Vecino más cercano: parte de la primera dirección y va a la parada más próxima cada vez.
+function nearestOrder(list) {
+  const withGeo = list.filter(r => r.lat != null), without = list.filter(r => r.lat == null);
+  if (!withGeo.length) return list;
+  const d = (a, b) => Math.hypot((a.lat - b.lat) * 111, (a.lng - b.lng) * 106);   // km aprox. en Lima
+  const out = [withGeo.shift()];
+  while (withGeo.length) {
+    const last = out[out.length - 1];
+    let k = 0;
+    withGeo.forEach((r, i) => { if (d(last, r) < d(last, withGeo[k])) k = i; });
+    out.push(withGeo.splice(k, 1)[0]);
+  }
+  return out.concat(without);
+}
+
+// Validación con Google (solo si hay clave): ubica cada dirección, confirma el distrito y habilita la ruta más corta.
+async function addrGoogle() {
+  if (!GOOGLE_MAPS_API_KEY || !addrRows.length) return;
+  const btn = $('btnAddrGoogle');
+  btn.disabled = true;
+  let ok = 0, fail = 0;
+  try {
+    for (let i = 0; i < addrRows.length; i++) {
+      const r = addrRows[i];
+      addrSetStatus('Validando con Google ' + (i + 1) + ' de ' + addrRows.length + '...');
+      if (r.lat != null) { ok++; continue; }
+      try {
+        const url = 'https://maps.googleapis.com/maps/api/geocode/json?region=pe&components=country:PE&language=es&address=' +
+          encodeURIComponent(mapsQuery(orderedAddress(r.direccion, r.distrito), r.distrito).replace(/, Perú$/, '')) + '&key=' + encodeURIComponent(GOOGLE_MAPS_API_KEY);
+        const data = await (await fetch(url)).json();
+        if (data.status === 'REQUEST_DENIED' || data.status === 'OVER_QUERY_LIMIT') throw new Error(data.error_message || data.status);
+        const hit = (data.results || [])[0];
+        if (!hit) { fail++; continue; }
+        r.lat = hit.geometry.location.lat;
+        r.lng = hit.geometry.location.lng;
+        const comp = (hit.address_components || []).find(c => c.types.some(t => t === 'sublocality' || t === 'sublocality_level_1' || t === 'locality'));
+        r.gDistrito = comp ? (canonicalDistrict(comp.long_name) || comp.long_name.toUpperCase()) : '';
+        ok++;
+      } catch (e) {
+        if (/DENIED|LIMIT|key|clave/i.test(String(e.message))) throw e;
+        fail++;
+      }
+    }
+    $('optRoute').disabled = false;
+    $('addrOrder').value = 'route';
+    addrRender();
+    const diff = addrRows.filter(r => r.gDistrito && normTxt(r.gDistrito) !== normTxt(r.distrito)).length;
+    addrSetStatus('Google ubicó ' + ok + ' direcciones' + (fail ? ' (' + fail + ' no se pudieron ubicar)' : '') +
+      (diff ? ' · ' + diff + ' con distrito distinto al tuyo (marcadas con ⚠)' : '') + '. Orden: ruta más corta.');
+  } catch (e) {
+    addrSetStatus('Google rechazó la consulta: ' + (e.message || e) + ' Revisa la clave y que Geocoding API esté activa.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function addrRender() {
+  const list = addrSorted();
+  const body = $('addrBody');
+  body.innerHTML = '';
+  list.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    [i + 1, r.clean || r.direccion, (r.distrito || '— sin distrito') + (r.gDistrito && normTxt(r.gDistrito) !== normTxt(r.distrito) ? '  ⚠ Google: ' + r.gDistrito : '')].forEach((text, c) => {
+      const td = document.createElement('td');
+      td.textContent = text;
+      if (c === 2 && r.distrito) td.className = 'dist';
+      tr.appendChild(td);
+    });
+    const td = document.createElement('td');
+    const b = document.createElement('button');
+    b.className = 'secondary mini-btn';
+    b.textContent = '📍';
+    b.title = 'Ver en Google Maps';
+    b.addEventListener('click', () => openMaps(r.lat != null ? 'https://www.google.com/maps/search/?api=1&query=' + r.lat + ',' + r.lng : mapsSearchUrl(r.clean || r.direccion, r.distrito)));
+    td.appendChild(b);
+    tr.appendChild(td);
+    body.appendChild(tr);
+  });
+
+  const routes = $('addrRoutes');
+  routes.innerHTML = '';
+  const stops = list.map(r => ({ direccion: r.clean || r.direccion, distrito: r.distrito, lat: r.lat, lng: r.lng }));
+  for (let from = 0, n = 1; from < stops.length - 1 || (from === 0 && stops.length === 1); from += ADDR_ROUTE - 1, n++) {
+    const chunk = stops.slice(from, from + ADDR_ROUTE);
+    const b = document.createElement('button');
+    b.className = 'secondary';
+    b.textContent = chunk.length === 1 ? '🗺️ Ver en Maps' : '🗺️ Ruta ' + n + ' (paradas ' + (from + 1) + '–' + (from + chunk.length) + ')';
+    b.addEventListener('click', () => openMaps(chunk.length === 1 ? mapsSearchUrl(chunk[0].direccion, chunk[0].distrito) : mapsRouteUrl(chunk)));
+    routes.appendChild(b);
+    if (chunk.length < ADDR_ROUTE) break;
+  }
+  $('addrResult').style.display = 'block';
+  const sinD = list.filter(r => !r.distrito).length;
+  addrSetStatus(list.length + ' direcciones ordenadas.' + (sinD ? ' ' + sinD + ' sin distrito detectado (van al final; Maps las buscará igual).' : ''));
+}
+
+function addrGo() {
+  if (!addrRows.length || $('addrInput').value.trim()) {
+    if ($('addrInput').value.trim()) addrRows = addrParse();
+  }
+  if (!addrRows.length) { addrSetStatus('Pega o sube al menos una dirección.'); return; }
+  if (addrRows.length > ADDR_MAX) { addrSetStatus('Máximo ' + ADDR_MAX + ' direcciones por vez.'); addrRows = addrRows.slice(0, ADDR_MAX); }
+  addrRender();
+}
+
+function addrClear() {
+  addrRows = [];
+  if ($('addrInput')) $('addrInput').value = '';
+  if ($('addrBody')) $('addrBody').innerHTML = '';
+  if ($('addrRoutes')) $('addrRoutes').innerHTML = '';
+  if ($('addrResult')) $('addrResult').style.display = 'none';
+  if ($('addrStatus')) addrSetStatus('Pega o sube las direcciones y pulsa Ordenar.');
+}
+
+async function addrReadFile(file) {
+  try {
+    addrSetStatus('Leyendo el Excel...');
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+    const header = (rows[0] || []).map(normHeader);
+    const find = names => header.findIndex(h => names.includes(h));
+    let cA = find(['DIRECCION', 'DIRECCION CLIENTE', 'DOMICILIO', 'DIRECCIONES']);
+    const cD = find(['DISTRITO', 'DISTRITO CORRECTO']);
+    let start = 1;
+    if (cA < 0) { cA = 0; start = 0; }   // sin encabezado: la primera columna es la dirección
+    const out = [];
+    rows.slice(start).forEach(r => {
+      const direccion = String(r[cA] ?? '').trim();
+      if (!direccion) return;
+      const distrito = cD >= 0 && String(r[cD] ?? '').trim() ? canonicalDistrict(r[cD]) || String(r[cD]).trim() : detectDistrict(direccion);
+      out.push({ direccion, distrito });
+    });
+    if (!out.length) throw new Error('No encontré direcciones en el Excel.');
+    addrRows = out;
+    $('addrInput').value = '';
+    addrGo();
+  } catch (e) {
+    addrSetStatus('No se pudo leer el Excel: ' + (e.message || e));
+  }
+}
+
+function addrExport() {
+  if (!addrRows.length || !window.XLSX) return;
+  const data = [['N°', 'DIRECCION', 'DISTRITO', 'GOOGLE MAPS']];
+  addrSorted().forEach((r, i) => data.push([i + 1, r.clean || r.direccion, r.distrito, r.lat != null ? 'https://www.google.com/maps/search/?api=1&query=' + r.lat + ',' + r.lng : mapsSearchUrl(r.clean || r.direccion, r.distrito)]));
+  const ws = linkSheet(data, 3);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Direcciones');
+  XLSX.writeFile(wb, 'Direcciones_ordenadas_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+}
+
+async function addrCopy() {
+  if (!addrRows.length) return;
+  const text = addrSorted().map((r, i) => [i + 1, r.clean || r.direccion, r.distrito].join('\t')).join('\n');
+  try { await navigator.clipboard.writeText(text); addrSetStatus('● Copiado. Pégalo en Excel o WhatsApp.'); }
+  catch (e) { addrSetStatus('No se pudo copiar.'); }
+}
+
+$('btnAddrGo').addEventListener('click', () => { if ($('addrInput').value.trim()) addrRows = addrParse(); addrGo(); });
+$('addrOrder').addEventListener('change', () => { if (addrRows.length) addrRender(); });
+$('btnAddrClear').addEventListener('click', addrClear);
+$('btnAddrFile').addEventListener('click', () => $('addrFile').click());
+$('addrFile').addEventListener('change', e => { const f = e.target.files[0]; if (f) addrReadFile(f); e.target.value = ''; });
+$('btnAddrFromDni').addEventListener('click', () => {
+  const found = results.filter(r => r.found && r.direccion);
+  if (!found.length) { addrSetStatus('Primero consulta algunos DNI.'); return; }
+  addrRows = found.map(r => ({ direccion: r.direccion, distrito: r.distrito }));
+  $('addrInput').value = '';
+  addrGo();
+});
+$('btnAddrExport').addEventListener('click', addrExport);
+$('btnAddrGoogle').addEventListener('click', addrGoogle);
+if (GOOGLE_MAPS_API_KEY) $('btnAddrGoogle').style.display = '';
+$('btnAddrCopy').addEventListener('click', addrCopy);
+
 $('btnClear').addEventListener('click', () => { wipeScreen(false); });
 $('btnDictate').addEventListener('click', startDictation);
 $('btnSpeakSummary').addEventListener('click', speakSummary);
