@@ -334,6 +334,7 @@ body[data-theme="blanco"] .login-card, body[data-theme="blanco"] .add-card { box
   <section class="card" id="addrCard">
     <h3>📍 Varias direcciones en Google Maps</h3>
     <div class="sub">Pega direcciones (una por línea, puedes poner el distrito al final) o sube un Excel con columnas DIRECCION y DISTRITO (opcional). Se ordenan y se abren en Google Maps.</div>
+    <datalist id="addrDistricts"></datalist>
     <textarea id="addrInput" style="font-size:15px;letter-spacing:0;font-family:inherit;margin-top:12px" placeholder="AV. LARCO 345 MIRAFLORES&#10;JR. UNION 120, LIMA&#10;CALLE LOS PINOS 88 SURCO" spellcheck="false"></textarea>
     <div class="row">
       <button class="secondary" id="btnAddrFile">⇧ Subir Excel</button>
@@ -1848,8 +1849,22 @@ function detectDistrict(text) {
   LIMA_DISTRICTS.forEach(d => {
     if (t.includes(' ' + normTxt(d) + ' ') && d.length > best.length) best = d;
   });
+  if (best) return best;
+  // Nombres cortos que la gente escribe: SURCO, SJL, SMP, VES...
+  const ALIAS = { 'SURCO': 'SANTIAGO DE SURCO', 'SJL': 'SAN JUAN DE LURIGANCHO', 'SMP': 'SAN MARTIN DE PORRES',
+    'VES': 'VILLA EL SALVADOR', 'VMT': 'VILLA MARIA DEL TRIUNFO', 'SJM': 'SAN JUAN DE MIRAFLORES',
+    'MAGDALENA': 'MAGDALENA DEL MAR', 'CERCADO DE LIMA': 'LIMA' };
+  Object.keys(ALIAS).forEach(a => {
+    const target = LIMA_DISTRICTS.find(d => normTxt(d) === ALIAS[a]);
+    if (target && t.includes(' ' + a + ' ') && a.length > best.length) best = target;
+  });
   return best;
 }
+
+(function () {
+  const dl = $('addrDistricts');
+  [...LIMA_DISTRICTS].sort((x, y) => x.localeCompare(y, 'es')).forEach(n => { const o = document.createElement('option'); o.value = n; dl.appendChild(o); });
+})();
 
 function addrSetStatus(text) { $('addrStatus').textContent = text; }
 
@@ -1933,12 +1948,29 @@ function addrRender() {
   body.innerHTML = '';
   list.forEach((r, i) => {
     const tr = document.createElement('tr');
-    [i + 1, r.clean || r.direccion, (r.distrito || '— sin distrito') + (r.gDistrito && normTxt(r.gDistrito) !== normTxt(r.distrito) ? '  ⚠ Google: ' + r.gDistrito : '')].forEach((text, c) => {
+    [i + 1, r.clean || r.direccion].forEach(text => {
       const td = document.createElement('td');
       td.textContent = text;
-      if (c === 2 && r.distrito) td.className = 'dist';
       tr.appendChild(td);
     });
+    // Distrito editable: escribe o elige y pulsa Enter (o sal del cuadro) para reordenar.
+    const tdD = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.setAttribute('list', 'addrDistricts');
+    inp.placeholder = 'Escribe el distrito';
+    inp.value = r.distrito || '';
+    inp.style.cssText = 'width:100%;min-width:150px;padding:8px 10px;border:1.5px solid ' + (r.distrito ? '#FFB3D9' : '#FF1A8C') + ';border-radius:10px;font-weight:700;color:#FF1A8C;text-transform:uppercase';
+    if (r.gDistrito && normTxt(r.gDistrito) !== normTxt(r.distrito)) inp.title = '⚠ Google ubica esta dirección en: ' + r.gDistrito;
+    inp.addEventListener('change', () => {
+      const v = inp.value.trim();
+      addrRows[r.i].distrito = v ? (canonicalDistrict(v) || v.toUpperCase()) : '';
+      addrRows[r.i].lat = addrRows[r.i].lng = null;
+      $('addrInput').value = addrRows.map(x => x.direccion + (x.distrito && detectDistrict(x.direccion) !== x.distrito ? ' ' + x.distrito : '')).join('\n');
+      addrRender();
+    });
+    tdD.appendChild(inp);
+    tr.appendChild(tdD);
     const td = document.createElement('td');
     const b = document.createElement('button');
     b.className = 'secondary mini-btn';
@@ -1964,7 +1996,7 @@ function addrRender() {
   }
   $('addrResult').style.display = 'block';
   const sinD = list.filter(r => !r.distrito).length;
-  addrSetStatus(list.length + ' direcciones ordenadas.' + (sinD ? ' ' + sinD + ' sin distrito detectado (van al final; Maps las buscará igual).' : ''));
+  addrSetStatus(list.length + ' direcciones ordenadas.' + (sinD ? ' ' + sinD + ' sin distrito (van al final). Escribe el distrito en la columna DISTRITO de la tabla.' : ''));
 }
 
 function addrGo() {
